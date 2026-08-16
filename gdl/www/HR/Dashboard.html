@@ -1,0 +1,10 @@
+{% extends "templates/web.html" %}
+{% block title %} {{ _("HR Dashboard") }} {% endblock title %}
+
+{% block page_content %}
+<h3 class="mt-0 mb-4">{{ _("HR Dashboard") }}</h3>
+<p class="text-secondary">
+	{{ _("Vacancy overview, applications, exams, interviews, and offers are coming in the next phases of this build.") }}
+</p>
+<a href="/app" class="btn btn-default">{{ _("Go to Desk") }}</a>
+{% endblock page_content %}

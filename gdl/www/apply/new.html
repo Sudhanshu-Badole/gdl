@@ -1,0 +1,107 @@
+{% extends "templates/web.html" %}
+{% block title %} {{ _("Apply") }} {% endblock title %}
+
+{% block page_content %}
+<div id="apply-loading" class="text-secondary">{{ _("Loading...") }}</div>
+<div id="apply-content" style="display: none">
+	<h3 class="mt-0 mb-1" id="apply-job-title"></h3>
+	<p class="text-secondary mb-6" id="apply-job-meta"></p>
+
+	<div id="apply-blockers" class="alert alert-warning mb-6" style="display: none"></div>
+
+	<div class="card border p-6 mb-6">
+		<h4 class="mt-0 mb-4">{{ _("Your Profile Snapshot") }}</h4>
+		<div id="apply-profile-snapshot"></div>
+		<a href="/complete-profile" class="btn btn-default btn-sm mt-3">{{ _("Edit Profile") }}</a>
+	</div>
+
+	<div class="card border p-6 mb-6" id="apply-form-card">
+		<h4 class="mt-0 mb-4">{{ _("Cover Letter (optional)") }}</h4>
+		<div id="apply-error" class="alert alert-danger" style="display: none"></div>
+		<form id="apply-form">
+			<div class="form-group mb-4">
+				<textarea class="form-control" id="cover_letter" name="cover_letter" rows="6"
+					placeholder="{{ _('Tell us why you are a good fit for this role...') }}"></textarea>
+			</div>
+			<button type="submit" class="btn btn-primary" id="apply-submit">{{ _("Submit Application") }}</button>
+		</form>
+	</div>
+</div>
+
+<script>
+function escapeHtml(s) {
+	const div = document.createElement("div");
+	div.textContent = s == null ? "" : String(s);
+	return div.innerHTML;
+}
+
+const params = new URLSearchParams(window.location.search);
+const jobOpening = params.get("job_title");
+
+function renderProfileSnapshot(applicant) {
+	document.getElementById("apply-profile-snapshot").innerHTML = `
+		<p class="mb-1"><strong>${escapeHtml(applicant.applicant_name)}</strong></p>
+		<p class="text-14 mb-1">${escapeHtml(applicant.email_id)} ${applicant.phone_number ? "· " + escapeHtml(applicant.phone_number) : ""}</p>
+		<p class="text-14 mb-0">{{ _("Profile completeness:") }} <strong>${applicant.gdl_profile_completeness || 0}%</strong></p>
+	`;
+}
+
+async function loadApplyContext() {
+	if (!jobOpening) {
+		document.getElementById("apply-loading").textContent = "{{ _('No vacancy specified.') }}";
+		return;
+	}
+
+	const res = await gdl.call("gdl.api.applicant.get_apply_context", { job_opening: jobOpening });
+	document.getElementById("apply-loading").style.display = "none";
+
+	if (!res.success) {
+		document.getElementById("apply-content").style.display = "block";
+		const blockers = document.getElementById("apply-blockers");
+		blockers.textContent = res.message || "This vacancy is not available.";
+		blockers.style.display = "block";
+		document.getElementById("apply-form-card").style.display = "none";
+		return;
+	}
+
+	document.getElementById("apply-content").style.display = "block";
+	document.getElementById("apply-job-title").textContent = res.data.job_opening.job_title;
+	document.getElementById("apply-job-meta").textContent = res.data.job_opening.closes_on
+		? "{{ _('Closes on') }} " + res.data.job_opening.closes_on
+		: "";
+
+	renderProfileSnapshot(res.data.applicant);
+
+	if (!res.data.can_apply) {
+		const blockers = document.getElementById("apply-blockers");
+		blockers.innerHTML = res.data.blockers.map(escapeHtml).join("<br>");
+		blockers.style.display = "block";
+		document.getElementById("apply-form-card").style.display = "none";
+	}
+}
+
+document.getElementById("apply-form").addEventListener("submit", async function (e) {
+	e.preventDefault();
+	const errorBox = document.getElementById("apply-error");
+	const submitBtn = document.getElementById("apply-submit");
+	errorBox.style.display = "none";
+	submitBtn.disabled = true;
+
+	const res = await gdl.call("gdl.api.applicant.submit_application", {
+		job_opening: jobOpening,
+		cover_letter: document.getElementById("cover_letter").value,
+	});
+
+	if (!res.success) {
+		errorBox.textContent = res.message || "Could not submit your application.";
+		errorBox.style.display = "block";
+		submitBtn.disabled = false;
+		return;
+	}
+
+	window.location.href = res.data.redirect_to;
+});
+
+document.addEventListener("DOMContentLoaded", loadApplyContext);
+</script>
+{% endblock page_content %}

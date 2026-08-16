@@ -1,0 +1,64 @@
+{% extends "templates/web.html" %}
+{% block title %} {{ _("Application Details") }} {% endblock title %}
+
+{% block page_content %}
+<div id="detail-loading" class="text-secondary">{{ _("Loading...") }}</div>
+<div id="detail-content" style="display: none">
+	<h3 class="mt-0 mb-1" id="detail-job-title"></h3>
+	<p class="text-secondary mb-1" id="detail-reference"></p>
+	<p class="mb-6"><span class="indicator-pill blue" id="detail-status"></span></p>
+
+	<div class="row">
+		<div class="col-lg-8">
+			<div class="card border p-6 mb-6">
+				<h4 class="mt-0 mb-4">{{ _("Examination") }}</h4>
+				<p class="text-secondary mb-0" id="detail-exam">{{ _("Not scheduled yet.") }}</p>
+			</div>
+			<div class="card border p-6 mb-6">
+				<h4 class="mt-0 mb-4">{{ _("Interview") }}</h4>
+				<p class="text-secondary mb-0" id="detail-interview">{{ _("Not scheduled yet.") }}</p>
+			</div>
+			<div class="card border p-6 mb-6">
+				<h4 class="mt-0 mb-4">{{ _("Offer & Appointment") }}</h4>
+				<p class="text-secondary mb-0" id="detail-offer">{{ _("No offer issued yet.") }}</p>
+			</div>
+		</div>
+		<div class="col-lg-4">
+			<div class="card border p-6 mb-6">
+				<h4 class="mt-0 mb-4">{{ _("Cover Letter") }}</h4>
+				<p class="text-14 mb-0" id="detail-cover-letter"></p>
+			</div>
+			<a href="/applications" class="btn btn-default btn-sm">{{ _("Back to My Applications") }}</a>
+		</div>
+	</div>
+</div>
+
+<script>
+function escapeHtml(s) {
+	const div = document.createElement("div");
+	div.textContent = s == null ? "" : String(s);
+	return div.innerHTML;
+}
+
+async function loadApplicationDetail() {
+	const res = await gdl.call("gdl.api.applicant.get_application_detail", { name: {{ application_name | tojson }} });
+	document.getElementById("detail-loading").style.display = "none";
+
+	if (!res.success) {
+		document.getElementById("detail-loading").style.display = "block";
+		document.getElementById("detail-loading").textContent = res.message || "Application not found.";
+		return;
+	}
+
+	document.getElementById("detail-content").style.display = "block";
+	document.getElementById("detail-job-title").textContent = res.data.job_opening.job_title;
+	document.getElementById("detail-reference").textContent = res.data.application.name;
+	document.getElementById("detail-status").textContent = res.data.application.status;
+	document.getElementById("detail-cover-letter").textContent = res.data.application.cover_letter || "{{ _('(none provided)') }}";
+	// exam_schedule / interview_schedule / offer stay as their default
+	// "not yet" copy until Phases 5-9 populate real data here.
+}
+
+document.addEventListener("DOMContentLoaded", loadApplicationDetail);
+</script>
+{% endblock page_content %}

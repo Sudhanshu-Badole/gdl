@@ -30,7 +30,7 @@ app_license = "mit"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/gdl/css/gdl.css"
-# web_include_js = "/assets/gdl/js/gdl.js"
+web_include_js = "/assets/gdl/js/gdl_api.js"
 
 # include custom scss in every website theme (without file extension ".scss")
 # website_theme_scss = "gdl/public/scss/website"
@@ -57,18 +57,55 @@ app_license = "mit"
 # ----------
 
 # application home page (will override Website Settings)
-# home_page = "login"
+home_page = "index"  # gdl/gdl/www/index.html - public vacancy showcase, no login required
 
-# website user home page (by Role)
-# role_home_page = {
-# 	"Role": "home_page"
-# }
+# website user home page by role (Task 2.3). Using get_website_user_home_page
+# (a function) instead of the simpler role_home_page dict: role_home_page
+# picks whichever role happens to come first in frappe.get_roles(), which is
+# not a guaranteed/deterministic order - a user with multiple roles (e.g.
+# Super Admin, which bundles System Manager + HR Officer + Panel Member)
+# could get bounced to the wrong dashboard. get_website_user_home_page lets
+# us enforce an explicit priority order instead.
+get_website_user_home_page = "gdl.auth.get_home_page"
+
+# Fixtures
+# --------
+# master data + roles/permissions exported so staging/production can be seeded
+# identically instead of re-entered by hand (Phase 1 / Task 1.2 & 1.3)
+
+fixtures = [
+	{"dt": "Role", "filters": [["name", "in", ["HR Officer", "Panel Member", "Applicant Portal User"]]]},
+	{"dt": "Role Profile", "filters": [["name", "in", ["HR Officer", "Panel Member", "Super Admin"]]]},
+	{
+		"dt": "Custom DocPerm",
+		"filters": [["role", "in", ["HR Officer", "Panel Member", "Applicant Portal User"]]],
+	},
+	{"dt": "Department", "filters": [["company", "=", "GreenDigital Ltd"]]},
+	{"dt": "Designation"},
+	{"dt": "Staffing Plan", "filters": [["company", "=", "GreenDigital Ltd"]]},
+	# every gdl_-prefixed custom field, on any doctype, auto-captured
+	{"dt": "Custom Field", "filters": [["fieldname", "like", "gdl_%"]]},
+	# Standard HRMS master data that isn't guaranteed to exist on every site
+	# (see gdl/setup_master_data.py - this bit a real user when it was missing)
+	{"dt": "Job Applicant Source"},
+	{"dt": "Employment Type"},
+]
 
 # Generators
 # ----------
 
 # automatically create page for each record of this doctype
 # website_generators = ["Web Page"]
+
+# custom portal URL rules (e.g. /HR/*, /panel/*) — populated as Phase 2/3+ pages are added
+website_route_rules = [
+	# {"from_route": "/HR/<path:app_path>", "to_route": "hr"},
+	# {"from_route": "/panel/<path:app_path>", "to_route": "panel"},
+	# Task 4.5 - /applications/<name> -> gdl/gdl/www/applications/detail.py,
+	# which reads the reference number from frappe.form_dict.name (same
+	# pattern ERPNext's own /orders/<path:name> route uses).
+	{"from_route": "/applications/<path:name>", "to_route": "applications/detail"},
+]
 
 # automatically load and sync documents of this doctype from downstream apps
 # importable_doctypes = [doctype_1]
@@ -136,36 +173,37 @@ app_license = "mit"
 
 # Document Events
 # ---------------
-# Hook on document methods and events
+# Hook on document methods and events — populated as later phases need it
+# (e.g. Job Applicant status changes -> audit trail / notifications in Phase 6/10)
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Job Applicant": {
+		# validate (not on_update) - runs as part of the same save, no
+		# separate write/recursion risk. See gdl/utils/completeness.py.
+		"validate": "gdl.utils.completeness.set_completeness_on_save",
+	},
+	"Job Opening": {
+		# validate - sets a field on this same doc, so it must run pre-save
+		# like completeness above, for the same reason.
+		"validate": "gdl.utils.vacancies.set_apply_route_on_save",
+	},
+	"Job Application": {
+		# on_update (not validate) - this hook writes to a *different* doc
+		# (the linked Job Opening) and needs to count already-committed
+		# sibling applications, so it must run after this save is persisted.
+		"on_update": "gdl.utils.vacancies.auto_close_job_opening_if_filled",
+	},
+}
 
 # Scheduled Tasks
 # ---------------
+# populated in Phase 10 for reminder notifications (24h-before exam/interview jobs)
 
-# scheduler_events = {
-# 	"all": [
-# 		"gdl.tasks.all"
-# 	],
-# 	"daily": [
-# 		"gdl.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"gdl.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"gdl.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"gdl.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	# "daily": [
+	# 	"gdl.gdl.tasks.send_reminder_notifications",
+	# ],
+}
 
 # Testing
 # -------
@@ -255,4 +293,3 @@ app_license = "mit"
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
-

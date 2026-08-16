@@ -1,0 +1,76 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "APP-.YYYY.-.#####",
+ "creation": "2026-08-15 13:33:48.627813",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "job_applicant",
+  "job_opening",
+  "status",
+  "cover_letter"
+ ],
+ "fields": [
+  {
+   "fieldname": "job_applicant",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Applicant",
+   "options": "Job Applicant",
+   "reqd": 1
+  },
+  {
+   "fieldname": "job_opening",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Vacancy",
+   "options": "Job Opening",
+   "reqd": 1
+  },
+  {
+   "default": "Submitted",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Submitted\nUnder Review\nReview on Hold\nShortlisted\nNot Shortlisted\nExam Invited / Scheduled\nExam Completed\nExam Not Attended\nInterview Invited / Scheduled\nInterview Completed\nInterview Not Attended\nSelected\nRejected\nOffer Sent\nOffer Accepted\nOffer Declined\nAppointed",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cover_letter",
+   "fieldtype": "Text",
+   "label": "Cover Letter"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-15 13:33:48.627813",
+ "modified_by": "Administrator",
+ "module": "Gdl",
+ "name": "Job Application",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,47 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Role Profile",
+  "modified": "2026-08-15 13:35:21.591806",
+  "name": "HR Officer",
+  "role_profile": "HR Officer",
+  "roles": [
+   {
+    "role": "HR Officer"
+   }
+  ]
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Role Profile",
+  "modified": "2026-08-15 13:35:21.692513",
+  "name": "Panel Member",
+  "role_profile": "Panel Member",
+  "roles": [
+   {
+    "role": "Panel Member"
+   }
+  ]
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Role Profile",
+  "modified": "2026-08-15 13:35:21.713313",
+  "name": "Super Admin",
+  "role_profile": "Super Admin",
+  "roles": [
+   {
+    "role": "System Manager"
+   },
+   {
+    "role": "HR Manager"
+   },
+   {
+    "role": "HR Officer"
+   },
+   {
+    "role": "Panel Member"
+   }
+  ]
+ }
+]

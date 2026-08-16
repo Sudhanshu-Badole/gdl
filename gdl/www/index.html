@@ -1,0 +1,59 @@
+{% extends "templates/web.html" %}
+{% block title %} {{ _("GDL Careers") }} {% endblock title %}
+
+{% block header %}
+<h3 class="mt-0 mb-2">{{ _("Careers at GDL") }}</h3>
+<p class="text-secondary mb-10">{{ _("Explore current openings and start your application.") }}</p>
+{% endblock header %}
+
+{% block page_content %}
+<div class="row mb-10">
+	{% for jo in vacancies %}
+	<div class="mb-8 col-sm-6 col-lg-4">
+		<a href="/{{ jo.route }}" class="card border h-100 p-6 d-block text-decoration-none">
+			<h4 class="mt-0 mb-1 text-truncate" title="{{ jo.job_title }}">{{ jo.job_title }}</h4>
+			<div class="text-14 text-secondary mb-3">
+				{{ jo.department or "" }}
+				{{ " · " ~ jo.location if jo.location else "" }}
+			</div>
+			{% if jo.employment_type %}
+			<span class="indicator-pill blue">{{ jo.employment_type }}</span>
+			{% endif %}
+			{% if jo.closes_on %}
+			<div class="text-12 text-secondary mt-3">
+				{{ _("Closes on") }} {{ frappe.utils.format_date(jo.closes_on, "d MMM, YYYY") }}
+			</div>
+			{% endif %}
+		</a>
+	</div>
+	{% else %}
+	<div class="col-12">
+		<p class="text-secondary">{{ _("No open vacancies right now - check back soon.") }}</p>
+	</div>
+	{% endfor %}
+</div>
+
+{% if vacancies %}
+<div class="mb-10">
+	<a href="/jobs" class="btn btn-default">{{ _("View all openings") }}</a>
+</div>
+{% endif %}
+
+<div class="card border p-6 mb-10">
+	<h4 class="mt-0">{{ _("How to Apply") }}</h4>
+	<ol class="text-14 mb-4">
+		<li>{{ _("Register for an account and verify your email.") }}</li>
+		<li>{{ _("Complete your profile - personal details, education, employment history, and required documents.") }}</li>
+		<li>{{ _("Browse open vacancies and submit your application.") }}</li>
+		<li>{{ _("Track your application status from your dashboard.") }}</li>
+	</ol>
+	{% if how_to_apply_page %}
+	<a href="/{{ how_to_apply_page.route }}">{{ _("Read the full guide") }} &rarr;</a>
+	{% endif %}
+</div>
+
+<div>
+	<a href="/register" class="btn btn-primary mr-2">{{ _("Register") }}</a>
+	<a href="/login" class="btn btn-default">{{ _("Sign In") }}</a>
+</div>
+{% endblock page_content %}

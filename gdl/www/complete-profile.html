@@ -1,0 +1,421 @@
+{% extends "templates/web.html" %}
+{% block title %} {{ _("Complete Your Profile") }} {% endblock title %}
+
+{% block page_content %}
+<h3 class="mt-0 mb-2">{{ _("Your Profile") }}</h3>
+<p class="text-secondary mb-6">{{ _("Complete your profile to apply for vacancies. A minimum of 80% completeness is required before you can submit an application.") }}</p>
+
+<div id="completeness-banner"></div>
+
+<!-- Personal info: rendered immediately, server-side (per spec) -->
+<div class="card border p-6 mb-6">
+	<h4 class="mt-0 mb-4">{{ _("Personal Information") }}</h4>
+	<div id="personal-info-error" class="alert alert-danger" style="display: none"></div>
+	<div id="personal-info-success" class="alert alert-success" style="display: none"></div>
+
+	<form id="personal-info-form">
+		<div class="row">
+			<div class="col-md-6 form-group mb-4">
+				<label for="gdl_date_of_birth">{{ _("Date of Birth") }}</label>
+				<input type="date" class="form-control" id="gdl_date_of_birth" name="gdl_date_of_birth"
+					value="{{ applicant.gdl_date_of_birth or '' }}">
+			</div>
+			<div class="col-md-6 form-group mb-4">
+				<label for="gdl_gender">{{ _("Gender") }}</label>
+				<select class="form-control" id="gdl_gender" name="gdl_gender">
+					<option value="">{{ _("Select...") }}</option>
+					{% for g in genders %}
+					<option value="{{ g }}" {{ "selected" if applicant.gdl_gender == g else "" }}>{{ g }}</option>
+					{% endfor %}
+				</select>
+			</div>
+		</div>
+		<div class="form-group mb-4">
+			<label for="gdl_nationality">{{ _("Nationality") }}</label>
+			<select class="form-control" id="gdl_nationality" name="gdl_nationality">
+				<option value="">{{ _("Select...") }}</option>
+				{% for c in countries %}
+				<option value="{{ c }}" {{ "selected" if applicant.gdl_nationality == c else "" }}>{{ c }}</option>
+				{% endfor %}
+			</select>
+		</div>
+		<div class="form-group mb-4">
+			<label for="gdl_permanent_address">{{ _("Permanent Address") }}</label>
+			<textarea class="form-control" id="gdl_permanent_address" name="gdl_permanent_address" rows="2">{{ applicant.gdl_permanent_address or '' }}</textarea>
+		</div>
+		<div class="form-group mb-4">
+			<label for="gdl_current_address">{{ _("Current Address") }}</label>
+			<textarea class="form-control" id="gdl_current_address" name="gdl_current_address" rows="2">{{ applicant.gdl_current_address or '' }}</textarea>
+		</div>
+		<div class="form-group mb-4">
+			<label for="gdl_profile_photo">{{ _("Profile Photo") }}</label>
+			{% if applicant.gdl_profile_photo %}
+			<div class="mb-2"><img src="{{ applicant.gdl_profile_photo }}" alt="Profile photo" style="max-width: 120px; border-radius: 6px;"></div>
+			{% endif %}
+			<input type="file" class="form-control" id="gdl_profile_photo" name="gdl_profile_photo" accept="image/*">
+			<small class="text-muted">{{ _("Uploading a new photo will replace the current one.") }}</small>
+		</div>
+		<button type="submit" class="btn btn-primary" id="personal-info-submit">{{ _("Save Personal Information") }}</button>
+	</form>
+</div>
+
+<!-- Education, employment history, and documents load asynchronously below -->
+<div id="education-section" class="card border p-6 mb-6">
+	<h4 class="mt-0 mb-4">{{ _("Education") }}</h4>
+	<div id="education-list" class="mb-4"><div class="skeleton-loader text-secondary">{{ _("Loading...") }}</div></div>
+	<form id="education-form" class="border-top pt-4">
+		<div class="row">
+			<div class="col-md-6 form-group mb-3">
+				<input type="text" class="form-control" name="qualification" placeholder="{{ _('Qualification') }}" required>
+			</div>
+			<div class="col-md-6 form-group mb-3">
+				<input type="text" class="form-control" name="institution_name" placeholder="{{ _('Institution Name') }}" required>
+			</div>
+		</div>
+		<div class="row">
+			<div class="col-md-4 form-group mb-3">
+				<label class="text-12 text-secondary">{{ _("Start Date") }}</label>
+				<input type="date" class="form-control" name="start_date">
+			</div>
+			<div class="col-md-4 form-group mb-3">
+				<label class="text-12 text-secondary">{{ _("Completion Date") }}</label>
+				<input type="date" class="form-control" name="completion_date">
+			</div>
+			<div class="col-md-4 form-group mb-3">
+				<input type="text" class="form-control" name="grade_or_result" placeholder="{{ _('Grade or Result') }}">
+			</div>
+		</div>
+		<button type="submit" class="btn btn-default btn-sm">{{ _("+ Add Education") }}</button>
+	</form>
+</div>
+
+<div id="employment-section" class="card border p-6 mb-6">
+	<h4 class="mt-0 mb-4">{{ _("Employment History") }}</h4>
+	<div id="employment-list" class="mb-4"><div class="skeleton-loader text-secondary">{{ _("Loading...") }}</div></div>
+	<form id="employment-form" class="border-top pt-4">
+		<div class="row">
+			<div class="col-md-6 form-group mb-3">
+				<input type="text" class="form-control" name="company_name" placeholder="{{ _('Company Name') }}" required>
+			</div>
+			<div class="col-md-6 form-group mb-3">
+				<input type="text" class="form-control" name="job_title" placeholder="{{ _('Job Title') }}">
+			</div>
+		</div>
+		<div class="row">
+			<div class="col-md-4 form-group mb-3">
+				<label class="text-12 text-secondary">{{ _("Start Date") }}</label>
+				<input type="date" class="form-control" name="start_date">
+			</div>
+			<div class="col-md-4 form-group mb-3">
+				<label class="text-12 text-secondary">{{ _("End Date") }}</label>
+				<input type="date" class="form-control" name="end_date">
+			</div>
+			<div class="col-md-4 form-group mb-3 form-check" style="padding-top: 28px;">
+				<input type="checkbox" class="form-check-input" name="currently_working" value="1" id="currently_working">
+				<label class="form-check-label" for="currently_working">{{ _("Currently working here") }}</label>
+			</div>
+		</div>
+		<div class="form-group mb-3">
+			<textarea class="form-control" name="responsibilities" rows="2" placeholder="{{ _('Responsibilities (optional)') }}"></textarea>
+		</div>
+		<button type="submit" class="btn btn-default btn-sm">{{ _("+ Add Employment Record") }}</button>
+	</form>
+</div>
+
+<div id="documents-section" class="card border p-6 mb-6">
+	<h4 class="mt-0 mb-4">{{ _("Documents") }}</h4>
+	<p class="text-14 text-secondary">{{ _("PDF, JPG, PNG, or DOCX - max 5 MB each.") }}</p>
+	<div id="mandatory-documents" class="mb-4"><div class="skeleton-loader text-secondary">{{ _("Loading...") }}</div></div>
+
+	<h5 class="mt-6 mb-3">{{ _("Other Supporting Documents") }}</h5>
+	<div id="other-documents-list" class="mb-4"></div>
+	<form id="other-document-form" class="row align-items-end">
+		<div class="col-md-5 form-group mb-3">
+			<input type="text" class="form-control" name="document_type" placeholder="{{ _('Document type (e.g. Reference Letter)') }}" required>
+		</div>
+		<div class="col-md-5 form-group mb-3">
+			<input type="file" class="form-control" name="file" required>
+		</div>
+		<div class="col-md-2 form-group mb-3">
+			<button type="submit" class="btn btn-default btn-sm">{{ _("Upload") }}</button>
+		</div>
+	</form>
+</div>
+
+<script>
+document.getElementById("personal-info-form").addEventListener("submit", async function (e) {
+	e.preventDefault();
+
+	const errorBox = document.getElementById("personal-info-error");
+	const successBox = document.getElementById("personal-info-success");
+	const submitBtn = document.getElementById("personal-info-submit");
+	errorBox.style.display = "none";
+	successBox.style.display = "none";
+	submitBtn.disabled = true;
+
+	try {
+		const res = await gdl.call("gdl.api.applicant.update_personal_info", {
+			gdl_date_of_birth: document.getElementById("gdl_date_of_birth").value,
+			gdl_gender: document.getElementById("gdl_gender").value,
+			gdl_nationality: document.getElementById("gdl_nationality").value,
+			gdl_permanent_address: document.getElementById("gdl_permanent_address").value,
+			gdl_current_address: document.getElementById("gdl_current_address").value,
+		});
+
+		if (!res.success) {
+			errorBox.textContent = res.message || "Could not save personal information.";
+			errorBox.style.display = "block";
+		} else {
+			successBox.textContent = res.message;
+			successBox.style.display = "block";
+		}
+	} catch (err) {
+		errorBox.textContent = "Something went wrong. Please try again.";
+		errorBox.style.display = "block";
+	} finally {
+		submitBtn.disabled = false;
+	}
+});
+
+document.getElementById("gdl_profile_photo").addEventListener("change", async function (e) {
+	const file = e.target.files[0];
+	if (!file) return;
+
+	const errorBox = document.getElementById("personal-info-error");
+	const successBox = document.getElementById("personal-info-success");
+	errorBox.style.display = "none";
+	successBox.style.display = "none";
+
+	const res = await gdl.upload("gdl.api.applicant.upload_profile_photo", file);
+	if (!res.success) {
+		errorBox.textContent = res.message || "Could not upload photo.";
+		errorBox.style.display = "block";
+	} else {
+		successBox.textContent = res.message;
+		successBox.style.display = "block";
+	}
+});
+
+// --- Education & Employment History: async load + CRUD (Task 3.2) ---
+
+function escapeHtml(s) {
+	const div = document.createElement("div");
+	div.textContent = s == null ? "" : String(s);
+	return div.innerHTML;
+}
+
+// For embedding JSON inside a single-quoted HTML attribute: & must be
+// escaped first, or the &apos; we add for literal quotes would itself get
+// mangled by a later &-escape pass.
+function escapeAttr(s) {
+	return s.replace(/&/g, "&amp;").replace(/'/g, "&apos;");
+}
+
+function renderChildList(containerId, rows, emptyMessage, renderRow) {
+	const container = document.getElementById(containerId);
+	if (!rows.length) {
+		container.innerHTML = `<p class="text-secondary text-14">${emptyMessage}</p>`;
+		return;
+	}
+	container.innerHTML = rows.map(renderRow).join("");
+}
+
+function renderEducation(rows) {
+	renderChildList("education-list", rows, "{{ _('No education records added yet.') }}", (row) => `
+		<div class="border-bottom pb-3 mb-3 flex" data-row-name="${row.name}">
+			<div>
+				<strong>${escapeHtml(row.qualification)}</strong> - ${escapeHtml(row.institution_name)}<br>
+				<span class="text-12 text-secondary">
+					${escapeHtml(row.start_date || "")} ${row.completion_date ? "- " + escapeHtml(row.completion_date) : ""}
+					${row.grade_or_result ? " · " + escapeHtml(row.grade_or_result) : ""}
+				</span>
+			</div>
+			<div class="ml-auto">
+				<a role="button" class="edit-education text-12 mr-3" data-row='${escapeAttr(JSON.stringify(row))}'>{{ _("Edit") }}</a>
+				<a role="button" class="delete-education text-12 text-danger">{{ _("Delete") }}</a>
+			</div>
+		</div>
+	`);
+}
+
+function renderEmployment(rows) {
+	renderChildList("employment-list", rows, "{{ _('No employment records added yet.') }}", (row) => `
+		<div class="border-bottom pb-3 mb-3 flex" data-row-name="${row.name}">
+			<div>
+				<strong>${escapeHtml(row.job_title || "")}</strong> ${row.job_title ? "at " : ""}${escapeHtml(row.company_name)}<br>
+				<span class="text-12 text-secondary">
+					${escapeHtml(row.start_date || "")} - ${row.currently_working ? "{{ _('Present') }}" : escapeHtml(row.end_date || "")}
+				</span>
+			</div>
+			<div class="ml-auto">
+				<a role="button" class="edit-employment text-12 mr-3" data-row='${escapeAttr(JSON.stringify(row))}'>{{ _("Edit") }}</a>
+				<a role="button" class="delete-employment text-12 text-danger">{{ _("Delete") }}</a>
+			</div>
+		</div>
+	`);
+}
+
+function setupChildForm(formId, addMethod, updateMethod, fieldNames, onSaved) {
+	const form = document.getElementById(formId);
+	let editingRowName = null;
+
+	form.addEventListener("submit", async function (e) {
+		e.preventDefault();
+		const args = {};
+		for (const name of fieldNames) {
+			const field = form.elements[name];
+			if (!field) continue;
+			args[name] = field.type === "checkbox" ? (field.checked ? 1 : 0) : field.value;
+		}
+
+		const res = editingRowName
+			? await gdl.call(updateMethod, { row_name: editingRowName, ...args })
+			: await gdl.call(addMethod, args);
+
+		if (!res.success) {
+			alert(res.message || "Could not save.");
+			return;
+		}
+		form.reset();
+		editingRowName = null;
+		onSaved(res.data);
+	});
+
+	form.startEdit = (row) => {
+		editingRowName = row.name;
+		for (const name of fieldNames) {
+			const field = form.elements[name];
+			if (!field) continue;
+			if (field.type === "checkbox") field.checked = !!row[name];
+			else field.value = row[name] || "";
+		}
+		form.scrollIntoView({ behavior: "smooth", block: "nearest" });
+	};
+}
+
+setupChildForm(
+	"education-form",
+	"gdl.api.applicant.add_education",
+	"gdl.api.applicant.update_education",
+	["qualification", "institution_name", "start_date", "completion_date", "grade_or_result"],
+	renderEducation
+);
+
+setupChildForm(
+	"employment-form",
+	"gdl.api.applicant.add_employment",
+	"gdl.api.applicant.update_employment",
+	["company_name", "job_title", "start_date", "end_date", "currently_working", "responsibilities"],
+	renderEmployment
+);
+
+document.getElementById("education-list").addEventListener("click", async function (e) {
+	if (e.target.classList.contains("edit-education")) {
+		document.getElementById("education-form").startEdit(JSON.parse(e.target.dataset.row));
+	} else if (e.target.classList.contains("delete-education")) {
+		const rowName = e.target.closest("[data-row-name]").dataset.rowName;
+		const res = await gdl.call("gdl.api.applicant.delete_education", { row_name: rowName });
+		if (res.success) renderEducation(res.data);
+	}
+});
+
+document.getElementById("employment-list").addEventListener("click", async function (e) {
+	if (e.target.classList.contains("edit-employment")) {
+		document.getElementById("employment-form").startEdit(JSON.parse(e.target.dataset.row));
+	} else if (e.target.classList.contains("delete-employment")) {
+		const rowName = e.target.closest("[data-row-name]").dataset.rowName;
+		const res = await gdl.call("gdl.api.applicant.delete_employment", { row_name: rowName });
+		if (res.success) renderEmployment(res.data);
+	}
+});
+
+// --- Documents (Task 3.3) ---
+
+const DOCUMENT_FIELDS = [
+	{ key: "resume_attachment", label: "{{ _('Curriculum Vitae (CV)') }}", method: "gdl.api.applicant.upload_cv", required: true },
+	{ key: "gdl_national_id", label: "{{ _('CID / National ID') }}", method: "gdl.api.applicant.upload_national_id", required: true },
+	{ key: "gdl_academic_certificate", label: "{{ _('Academic Certificate') }}", method: "gdl.api.applicant.upload_academic_certificate", required: true },
+	{ key: "gdl_experience_letter", label: "{{ _('Experience Letter (optional)') }}", method: "gdl.api.applicant.upload_experience_letter", required: false },
+];
+
+function renderMandatoryDocuments(profile) {
+	document.getElementById("mandatory-documents").innerHTML = DOCUMENT_FIELDS.map((doc) => {
+		const url = profile[doc.key];
+		const status = url
+			? `<a href="${url}" target="_blank" class="text-12">{{ _('View uploaded file') }}</a>`
+			: `<span class="text-12 text-secondary">{{ _("Not uploaded") }}</span>`;
+		return `
+			<div class="d-flex align-items-center border-bottom pb-3 mb-3">
+				<div style="min-width: 240px;">
+					${escapeHtml(doc.label)} ${doc.required ? '<span class="text-danger">*</span>' : ""}<br>
+					${status}
+				</div>
+				<input type="file" class="form-control document-upload-input" data-method="${doc.method}">
+			</div>
+		`;
+	}).join("");
+}
+
+function renderOtherDocuments(rows) {
+	renderChildList("other-documents-list", rows, "{{ _('No other documents uploaded.') }}", (row) => `
+		<div class="border-bottom pb-2 mb-2 flex" data-row-name="${row.name}">
+			<div><a href="${row.attachment}" target="_blank">${escapeHtml(row.document_type)}</a></div>
+			<div class="ml-auto">
+				<a role="button" class="delete-other-document text-12 text-danger">{{ _("Delete") }}</a>
+			</div>
+		</div>
+	`);
+}
+
+document.getElementById("mandatory-documents").addEventListener("change", async function (e) {
+	if (!e.target.classList.contains("document-upload-input")) return;
+	const file = e.target.files[0];
+	if (!file) return;
+	const res = await gdl.upload(e.target.dataset.method, file);
+	if (!res.success) {
+		alert(res.message || "Upload failed.");
+		return;
+	}
+	loadProfileAsync();
+});
+
+document.getElementById("other-document-form").addEventListener("submit", async function (e) {
+	e.preventDefault();
+	const form = e.target;
+	const file = form.elements["file"].files[0];
+	if (!file) return;
+	const res = await gdl.upload("gdl.api.applicant.add_other_document", file, {
+		document_type: form.elements["document_type"].value,
+	});
+	if (!res.success) {
+		alert(res.message || "Upload failed.");
+		return;
+	}
+	form.reset();
+	renderOtherDocuments(res.data);
+});
+
+document.getElementById("other-documents-list").addEventListener("click", async function (e) {
+	if (e.target.classList.contains("delete-other-document")) {
+		const rowName = e.target.closest("[data-row-name]").dataset.rowName;
+		const res = await gdl.call("gdl.api.applicant.delete_other_document", { row_name: rowName });
+		if (res.success) renderOtherDocuments(res.data);
+	}
+});
+
+async function loadProfileAsync() {
+	const res = await gdl.call("gdl.api.applicant.get_profile");
+	if (!res.success) return;
+	renderEducation(res.data.gdl_education || []);
+	renderEmployment(res.data.gdl_employment_history || []);
+	renderMandatoryDocuments(res.data);
+	renderOtherDocuments(res.data.gdl_other_documents || []);
+	gdl.renderCompletenessBanner("completeness-banner", res.data.gdl_profile_completeness || 0);
+}
+
+// gdl_api.js loads at the very end of <body> (after this inline script),
+// so calling gdl.* immediately here would race it. Wait for the full page
+// parse to finish first.
+document.addEventListener("DOMContentLoaded", loadProfileAsync);
+</script>
+{% endblock page_content %}

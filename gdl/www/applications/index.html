@@ -1,0 +1,53 @@
+{% extends "templates/web.html" %}
+{% block title %} {{ _("My Applications") }} {% endblock title %}
+
+{% block page_content %}
+<h3 class="mt-0 mb-4">{{ _("My Applications") }}</h3>
+<div id="applications-list"><div class="skeleton-loader text-secondary">{{ _("Loading...") }}</div></div>
+
+<script>
+function escapeHtml(s) {
+	const div = document.createElement("div");
+	div.textContent = s == null ? "" : String(s);
+	return div.innerHTML;
+}
+
+function statusBadgeClass(status) {
+	if (["Selected", "Offer Accepted", "Appointed"].includes(status)) return "green";
+	if (["Not Shortlisted", "Rejected", "Offer Declined", "Exam Not Attended", "Interview Not Attended"].includes(status)) return "red";
+	return "blue";
+}
+
+async function loadApplications() {
+	const res = await gdl.call("gdl.api.applicant.get_my_applications");
+	const container = document.getElementById("applications-list");
+
+	if (!res.success) {
+		container.innerHTML = `<p class="text-secondary">${escapeHtml(res.message || "Could not load applications.")}</p>`;
+		return;
+	}
+
+	if (!res.data.length) {
+		container.innerHTML = `
+			<p class="text-secondary">{{ _("No applications yet.") }}</p>
+			<a href="/jobs" class="btn btn-default btn-sm">{{ _("Browse Vacancies") }}</a>
+		`;
+		return;
+	}
+
+	container.innerHTML = res.data.map((app) => `
+		<a href="/applications/${app.name}" class="card border p-4 mb-3 d-block text-decoration-none">
+			<div class="d-flex align-items-center justify-content-between">
+				<div>
+					<strong>${escapeHtml(app.job_title || app.job_opening)}</strong><br>
+					<span class="text-12 text-secondary">${escapeHtml(app.name)} · ${escapeHtml(app.creation)}</span>
+				</div>
+				<span class="indicator-pill ${statusBadgeClass(app.status)}">${escapeHtml(app.status)}</span>
+			</div>
+		</a>
+	`).join("");
+}
+
+document.addEventListener("DOMContentLoaded", loadApplications);
+</script>
+{% endblock page_content %}

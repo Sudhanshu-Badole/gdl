@@ -1,0 +1,85 @@
+{% extends "templates/web.html" %}
+{% block title %} {{ _("Register") }} {% endblock title %}
+
+{% block page_content %}
+<div class="row justify-content-center">
+	<div class="col-md-6 col-lg-5">
+		<h3 class="mt-0 mb-6">{{ _("Create your applicant account") }}</h3>
+
+		<div id="register-error" class="alert alert-danger" style="display: none"></div>
+		<div id="register-success" class="alert alert-success" style="display: none"></div>
+
+		<form id="register-form">
+			<div class="form-group mb-4">
+				<label for="full_name">{{ _("Full Name") }}</label>
+				<input type="text" class="form-control" id="full_name" name="full_name" required>
+			</div>
+			<div class="form-group mb-4">
+				<label for="email">{{ _("Email") }}</label>
+				<input type="email" class="form-control" id="email" name="email" required>
+			</div>
+			<div class="form-group mb-4">
+				<label for="phone">{{ _("Phone") }}</label>
+				<input type="tel" class="form-control" id="phone" name="phone" required>
+			</div>
+			<div class="form-group mb-4">
+				<label for="password">{{ _("Password") }}</label>
+				<input type="password" class="form-control" id="password" name="password" minlength="8" required>
+				<small class="text-muted">{{ _("At least 8 characters, with upper and lower case letters.") }}</small>
+			</div>
+			<button type="submit" class="btn btn-primary" id="register-submit">{{ _("Register") }}</button>
+		</form>
+
+		<p class="mt-4 text-14">
+			{{ _("Already have an account?") }} <a href="/login">{{ _("Sign in") }}</a>
+		</p>
+	</div>
+</div>
+
+<script>
+document.getElementById("register-form").addEventListener("submit", async function (e) {
+	e.preventDefault();
+
+	const errorBox = document.getElementById("register-error");
+	const successBox = document.getElementById("register-success");
+	const submitBtn = document.getElementById("register-submit");
+	errorBox.style.display = "none";
+	successBox.style.display = "none";
+	submitBtn.disabled = true;
+
+	const full_name = document.getElementById("full_name").value;
+	const email = document.getElementById("email").value;
+	const phone = document.getElementById("phone").value;
+	const password = document.getElementById("password").value;
+
+	try {
+		const res = await gdl.call("gdl.api.public.register_applicant", { full_name, email, phone, password });
+
+		if (!res.success) {
+			errorBox.textContent = res.message || "Registration failed.";
+			errorBox.style.display = "block";
+			submitBtn.disabled = false;
+			return;
+		}
+
+		successBox.textContent = res.message;
+		successBox.style.display = "block";
+
+		// Sign the new applicant in immediately, then follow the API's redirect.
+		const loginParams = new URLSearchParams({ usr: email, pwd: password });
+		const loginRes = await fetch("/api/method/login", { method: "POST", body: loginParams });
+
+		if (loginRes.ok) {
+			window.location.href = res.data.redirect_to;
+		} else {
+			// Account was created but auto-login failed - send them to sign in manually.
+			window.location.href = "/login";
+		}
+	} catch (err) {
+		errorBox.textContent = "Something went wrong. Please try again.";
+		errorBox.style.display = "block";
+		submitBtn.disabled = false;
+	}
+});
+</script>
+{% endblock page_content %}

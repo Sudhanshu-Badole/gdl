@@ -1,0 +1,58 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Employment Type",
+  "employee_type_name": "Full-time",
+  "modified": "2026-08-15 14:37:29.974654",
+  "name": "Full-time"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employment Type",
+  "employee_type_name": "Part-time",
+  "modified": "2026-08-15 14:37:30.007655",
+  "name": "Part-time"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employment Type",
+  "employee_type_name": "Probation",
+  "modified": "2026-08-15 14:37:30.013960",
+  "name": "Probation"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employment Type",
+  "employee_type_name": "Contract",
+  "modified": "2026-08-15 14:37:30.020034",
+  "name": "Contract"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employment Type",
+  "employee_type_name": "Commission",
+  "modified": "2026-08-15 14:37:30.026324",
+  "name": "Commission"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employment Type",
+  "employee_type_name": "Piecework",
+  "modified": "2026-08-15 14:37:30.032600",
+  "name": "Piecework"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employment Type",
+  "employee_type_name": "Intern",
+  "modified": "2026-08-15 14:37:30.038657",
+  "name": "Intern"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employment Type",
+  "employee_type_name": "Apprentice",
+  "modified": "2026-08-15 14:37:30.044911",
+  "name": "Apprentice"
+ }
+]
