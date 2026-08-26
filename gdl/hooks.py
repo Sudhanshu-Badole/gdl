@@ -57,7 +57,12 @@ web_include_js = "/assets/gdl/js/gdl_api.js"
 # ----------
 
 # application home page (will override Website Settings)
-home_page = "index"  # gdl/gdl/www/index.html - public vacancy showcase, no login required
+# gdl/frontend (Vue SPA, served via gdl/gdl/www/frontend.py/.html) - public
+# vacancy showcase, no login required. Only affects Guests: for logged-in
+# users, get_home_page_via_hooks() checks get_website_user_home_page (below)
+# first, which already returns a real role dashboard before ever falling
+# back to this hook.
+home_page = "frontend"
 
 # website user home page by role (Task 2.3). Using get_website_user_home_page
 # (a function) instead of the simpler role_home_page dict: role_home_page
@@ -85,6 +90,8 @@ fixtures = [
 	{"dt": "Staffing Plan", "filters": [["company", "=", "GreenDigital Ltd"]]},
 	# every gdl_-prefixed custom field, on any doctype, auto-captured
 	{"dt": "Custom Field", "filters": [["fieldname", "like", "gdl_%"]]},
+	# Job Opening's VAC-.YYYY.-.#### naming series (Customize Form -> Autoname)
+	{"dt": "Property Setter", "filters": [["doc_type", "=", "Job Opening"], ["property", "=", "autoname"]]},
 	# Standard HRMS master data that isn't guaranteed to exist on every site
 	# (see gdl/setup_master_data.py - this bit a real user when it was missing)
 	{"dt": "Job Applicant Source"},
@@ -99,12 +106,42 @@ fixtures = [
 
 # custom portal URL rules (e.g. /HR/*, /panel/*) — populated as Phase 2/3+ pages are added
 website_route_rules = [
-	# {"from_route": "/HR/<path:app_path>", "to_route": "hr"},
 	# {"from_route": "/panel/<path:app_path>", "to_route": "panel"},
-	# Task 4.5 - /applications/<name> -> gdl/gdl/www/applications/detail.py,
-	# which reads the reference number from frappe.form_dict.name (same
-	# pattern ERPNext's own /orders/<path:name> route uses).
-	{"from_route": "/applications/<path:name>", "to_route": "applications/detail"},
+	# HR portal (role-gated /HR/* routes inside the same Vue SPA as the public
+	# site, not a separate app - <path:app_path> greedily matches every HR
+	# sub-path, e.g. /HR/Dashboard, /HR/Vacancies, /HR/Vacancies/<name>).
+	{"from_route": "/HR/<path:app_path>", "to_route": "frontend"},
+	# Applicant portal (ported from gdl/www/{dashboard,applications,
+	# complete-profile}.* into the same Vue SPA - role-gated client-side by
+	# the Applicant Portal User guard in frontend/src/router/index.js, same
+	# pattern as /HR/* above). URLs are unchanged from the old Jinja pages -
+	# they're hardcoded in gdl.api.public.register_applicant's redirect_to,
+	# confirmation emails, and apply/new.html's "Edit Profile" link - only
+	# what serves them changed. /apply/new deliberately has no rule here and
+	# still serves from the old physical www/apply/new.py page.
+	{"from_route": "/dashboard", "to_route": "frontend"},
+	{"from_route": "/applications", "to_route": "frontend"},
+	{"from_route": "/applications/<path:name>", "to_route": "frontend"},
+	{"from_route": "/complete-profile", "to_route": "frontend"},
+	# Vue public site (gdl/frontend). "/" itself is handled entirely by the
+	# home_page hook (get_home_page() substitutes it before route rules are
+	# even consulted - see resolve_path() in Frappe core), not a rule here.
+	# The rules below take priority over a same-path physical www/*.html page
+	# (verified against Frappe core's resolve_from_map(), which runs before
+	# any file lookup), so they safely shadow the now-deleted
+	# gdl/www/{index,jobs,register}.* pages and Frappe core's stock /login
+	# page. /frontend/<path:app_path> is the SPA's own asset/deep-link
+	# passthrough, kept from the original doppio scaffold.
+	{"from_route": "/jobs", "to_route": "frontend"},
+	# Public vacancy detail page (Vue), identified by Job Opening docname
+	# (e.g. /jobs/VAC-2026-0011) - shadows HRMS's own website-generator page
+	# for Job Opening (which used the route field, e.g.
+	# jobs/greendigital_ltd/associate), same priority as /login/-register
+	# above.
+	{"from_route": "/jobs/<path:name>", "to_route": "frontend"},
+	{"from_route": "/register", "to_route": "frontend"},
+	{"from_route": "/login", "to_route": "frontend"},
+	{"from_route": "/frontend/<path:app_path>", "to_route": "frontend"},
 ]
 
 # automatically load and sync documents of this doctype from downstream apps

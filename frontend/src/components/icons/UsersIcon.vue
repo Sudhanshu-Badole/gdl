@@ -1,0 +1,8 @@
+<template>
+	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+		<circle cx="9" cy="8" r="3.5" />
+		<path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+		<path d="M16 5.3a3.5 3.5 0 0 1 0 6.9" />
+		<path d="M18.5 13.3a6.5 6.5 0 0 1 3 5.4" />
+	</svg>
+</template>

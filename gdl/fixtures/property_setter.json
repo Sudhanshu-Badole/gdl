@@ -1,0 +1,17 @@
+[
+ {
+  "doctype": "Property Setter",
+  "name": "Job Opening-main-autoname",
+  "doc_type": "Job Opening",
+  "doctype_or_field": "DocType",
+  "field_name": null,
+  "row_name": null,
+  "property": "autoname",
+  "property_type": "Data",
+  "value": "VAC-.YYYY.-.####",
+  "default_value": null,
+  "module": null,
+  "is_system_generated": 0,
+  "docstatus": 0
+ }
+]

@@ -19,6 +19,15 @@ ROLE_HOME_PAGES = [
 
 
 def get_home_page(user):
+	# The Administrator account always holds every role, including System
+	# Manager - without this it would match ROLE_HOME_PAGES' first entry and
+	# land on the HR portal instead of Frappe's own Desk, which is the
+	# expected default for this specific superuser account (not for other
+	# System Manager holders, e.g. the Super Admin role profile, who should
+	# still default to the HR portal below).
+	if user == "Administrator":
+		return "desk"
+
 	user_roles = set(frappe.get_roles(user))
 	for role, page in ROLE_HOME_PAGES:
 		if role in user_roles:

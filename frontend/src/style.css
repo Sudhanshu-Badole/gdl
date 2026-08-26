@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  /* GDL forest-green brand scale, approximated from the er.gdl.bt screenshots */
+  --color-brand-50: #eefaf2;
+  --color-brand-100: #d7f0e0;
+  --color-brand-200: #aee0c2;
+  --color-brand-300: #7cc99e;
+  --color-brand-400: #4aab78;
+  --color-brand-500: #2c8c5c;
+  --color-brand-600: #1f7a4a;
+  --color-brand-700: #19613b;
+  --color-brand-800: #144d30;
+  --color-brand-900: #0f3a24;
+
+  --color-ink: #0b1220;
+  --color-body: #5b6472;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-body);
+  background: #fff;
+}
+
+h1, h2, h3, h4 {
+  color: var(--color-ink);
+}

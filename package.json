@@ -1,0 +1,24 @@
+{
+  "name": "gdl",
+  "version": "1.0.0",
+  "description": "GDL e-Recruitment \u2014 custom Frappe app for GDL's Applicant Tracking System. Built on top of Frappe + ERPNext + HRMS. No core files or core doctypes are ever edited \u2014 only Custom Fields/Doctypes, Roles, Custom DocPerm, fixtures, and code inside this app.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "(cd frontend && yarn install)",
+    "build": "(cd frontend && yarn build)",
+    "dev": "(cd frontend && yarn dev)"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sudhanshu-Badole/gdl.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Sudhanshu-Badole/gdl/issues"
+  },
+  "homepage": "https://github.com/Sudhanshu-Badole/gdl#readme"
+}

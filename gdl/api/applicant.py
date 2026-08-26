@@ -63,6 +63,7 @@ PERSONAL_INFO_FIELDS = [
 	"gdl_nationality",
 	"gdl_permanent_address",
 	"gdl_current_address",
+	"gdl_cid_number",
 ]
 
 
