@@ -21,13 +21,11 @@ const routes = [
 		path: "/register",
 		name: "Register",
 		component: () => import("../views/Register.vue"),
-		meta: { isLoginPage: true },
 	},
 	{
 		path: "/login",
 		name: "Login",
 		component: () => import("../views/Login.vue"),
-		meta: { isLoginPage: true },
 	},
 	{
 		path: "/HR",
@@ -81,6 +79,18 @@ const routes = [
 		meta: { isAdmin: true },
 		children: [{ path: "", name: "ApplicantProfile", component: () => import("../views/applicant/Profile.vue") }],
 	},
+	{
+		path: "/apply/new",
+		component: () => import("../layouts/ApplicantLayout.vue"),
+		meta: { isAdmin: true },
+		children: [{ path: "", name: "ApplyNew", component: () => import("../views/applicant/ApplyNew.vue") }],
+	},
+	{
+		path: "/exams/:name",
+		component: () => import("../layouts/ApplicantLayout.vue"),
+		meta: { isAdmin: true },
+		children: [{ path: "", name: "ExamAttempt", component: () => import("../views/applicant/ExamAttempt.vue") }],
+	},
 ];
 
 const router = createRouter({
@@ -98,7 +108,7 @@ const router = createRouter({
 const GATED_PORTALS = [
 	{ prefixes: ["/HR"], roles: ["HR Officer", "System Manager"], homePath: "/HR/Dashboard" },
 	{
-		prefixes: ["/dashboard", "/applications", "/complete-profile"],
+		prefixes: ["/dashboard", "/applications", "/complete-profile", "/apply", "/exams"],
 		roles: ["Applicant Portal User"],
 		homePath: "/dashboard",
 	},

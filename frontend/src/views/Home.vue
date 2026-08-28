@@ -109,7 +109,8 @@
 				</router-link>
 			</div>
 
-			<p v-if="loaded && !vacancies.length" class="text-sm text-body">
+			<p v-if="loaded && error" class="text-sm text-red-600">{{ error }}</p>
+			<p v-else-if="loaded && !vacancies.length" class="text-sm text-body">
 				No open vacancies right now - check back soon.
 			</p>
 			<div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -197,7 +198,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../lib/call";
 
 import IntentionNotice from "../components/IntentionNotice.vue";
 import VacancyCard from "../components/VacancyCard.vue";
@@ -255,12 +256,15 @@ const steps = [
 const vacancies = ref([]);
 const openCount = ref(0);
 const loaded = ref(false);
+const error = ref("");
 
 onMounted(async () => {
 	try {
 		const res = await call("gdl.api.public.get_home_vacancies");
 		vacancies.value = res?.data?.vacancies || [];
 		openCount.value = res?.data?.total || 0;
+	} catch (err) {
+		error.value = err.messages?.[0] || "Could not load vacancies.";
 	} finally {
 		loaded.value = true;
 	}

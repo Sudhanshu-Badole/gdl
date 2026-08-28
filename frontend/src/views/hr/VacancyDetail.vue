@@ -47,6 +47,7 @@
 				</button>
 			</div>
 		</div>
+		<p v-if="actionError" class="mt-2 text-sm text-red-600">{{ actionError }}</p>
 
 		<div class="mt-6 border-b border-gray-200">
 			<nav class="flex gap-6 text-sm font-medium">
@@ -101,6 +102,7 @@
 				<div v-if="!applicationsLoaded" class="space-y-3">
 					<div v-for="i in 4" :key="i" class="h-10 animate-pulse rounded-md bg-gray-100"></div>
 				</div>
+				<p v-else-if="applicationsError" class="text-sm text-red-600">{{ applicationsError }}</p>
 				<p v-else-if="!applications.length" class="text-sm text-body">No applications yet.</p>
 				<div v-else class="overflow-x-auto rounded-xl border border-gray-200">
 					<table class="w-full text-left text-sm">
@@ -124,9 +126,15 @@
 				</div>
 			</div>
 
+			<ShortlistPanel v-else-if="activeTab === 'Shortlist'" :job-opening="props.name" />
+
+			<ExamPanel v-else-if="activeTab === 'Exams'" :job-opening="props.name" />
+
 			<ComingSoonPanel v-else :feature="activeTab" />
 		</div>
 	</div>
+
+	<p v-else-if="loaded" class="text-sm text-red-600">{{ error || "Vacancy not found." }}</p>
 
 	<div v-else class="space-y-4">
 		<div class="h-6 w-40 animate-pulse rounded bg-gray-100"></div>
@@ -136,8 +144,10 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../../lib/call";
 import ComingSoonPanel from "../../components/hr/ComingSoonPanel.vue";
+import ShortlistPanel from "../../components/hr/ShortlistPanel.vue";
+import ExamPanel from "../../components/hr/ExamPanel.vue";
 
 const props = defineProps({
 	name: { type: String, required: true },
@@ -157,14 +167,19 @@ const pipelineStages = [
 
 const detail = ref(null);
 const loaded = ref(false);
+const error = ref("");
+const actionError = ref("");
 
 const applications = ref([]);
 const applicationsLoaded = ref(false);
+const applicationsError = ref("");
 
 onMounted(async () => {
 	try {
 		const res = await call("gdl.api.hr.get_vacancy", { name: props.name });
 		detail.value = res?.data || null;
+	} catch (err) {
+		error.value = err.messages?.[0] || "Could not load this vacancy.";
 	} finally {
 		loaded.value = true;
 	}
@@ -181,15 +196,22 @@ async function loadApplications() {
 	try {
 		const res = await call("gdl.api.hr.get_vacancy_applications", { job_opening: props.name });
 		applications.value = res?.data || [];
+	} catch (err) {
+		applicationsError.value = err.messages?.[0] || "Could not load applications.";
 	} finally {
 		applicationsLoaded.value = true;
 	}
 }
 
 async function closeApplications() {
-	await call("gdl.api.hr.close_vacancy_applications", { name: props.name });
-	const res = await call("gdl.api.hr.get_vacancy", { name: props.name });
-	detail.value = res?.data || null;
+	actionError.value = "";
+	try {
+		await call("gdl.api.hr.close_vacancy_applications", { name: props.name });
+		const res = await call("gdl.api.hr.get_vacancy", { name: props.name });
+		detail.value = res?.data || null;
+	} catch (err) {
+		actionError.value = err.messages?.[0] || "Could not close applications.";
+	}
 }
 
 function pipelinePercent(key) {

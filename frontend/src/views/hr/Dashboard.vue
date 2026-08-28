@@ -73,6 +73,8 @@
 			</section>
 		</template>
 
+		<p v-else-if="loaded" class="mt-8 text-sm text-red-600">{{ error }}</p>
+
 		<div v-else class="mt-8 space-y-4">
 			<div v-for="i in 4" :key="i" class="h-20 animate-pulse rounded-xl bg-gray-100"></div>
 		</div>
@@ -81,7 +83,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../../lib/call";
 import StatCard from "../../components/hr/StatCard.vue";
 import BriefcaseIcon from "../../components/icons/BriefcaseIcon.vue";
 import SendIcon from "../../components/icons/SendIcon.vue";
@@ -93,11 +95,14 @@ import UsersIcon from "../../components/icons/UsersIcon.vue";
 
 const stats = ref(null);
 const loaded = ref(false);
+const error = ref("");
 
 onMounted(async () => {
 	try {
 		const res = await call("gdl.api.hr.get_dashboard_stats");
 		stats.value = res?.data || null;
+	} catch (err) {
+		error.value = err.messages?.[0] || "Could not load dashboard.";
 	} finally {
 		loaded.value = true;
 	}

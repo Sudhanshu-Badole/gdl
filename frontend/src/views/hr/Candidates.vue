@@ -74,6 +74,7 @@
 					</tbody>
 				</table>
 			</div>
+			<p v-else-if="loaded && error" class="mt-6 text-sm text-red-600">{{ error }}</p>
 			<p v-else-if="loaded" class="mt-6 text-sm text-body">No candidates found.</p>
 			<div v-else class="mt-6 space-y-3">
 				<div v-for="i in 5" :key="i" class="h-10 animate-pulse rounded-md bg-gray-100"></div>
@@ -86,7 +87,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../../lib/call";
 import ComingSoonPanel from "../../components/hr/ComingSoonPanel.vue";
 
 const activeTab = ref("all");
@@ -94,15 +95,19 @@ const search = ref("");
 const sort = ref("creation desc");
 const candidates = ref([]);
 const loaded = ref(false);
+const error = ref("");
 
 async function loadCandidates() {
 	loaded.value = false;
+	error.value = "";
 	try {
 		const res = await call("gdl.api.hr.list_candidates", {
 			search: search.value || undefined,
 			sort: sort.value,
 		});
 		candidates.value = res?.data || [];
+	} catch (err) {
+		error.value = err.messages?.[0] || "Could not load candidates.";
 	} finally {
 		loaded.value = true;
 	}

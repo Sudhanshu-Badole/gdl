@@ -64,7 +64,7 @@
 
 <script setup>
 import { ref } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../../lib/call";
 import upload from "../../lib/upload";
 
 const props = defineProps({
@@ -139,7 +139,16 @@ async function addOther() {
 }
 
 async function removeOther(rowName) {
-	const res = await call("gdl.api.applicant.delete_other_document", { row_name: rowName });
-	if (res.success) emit("changed");
+	otherError.value = "";
+	try {
+		const res = await call("gdl.api.applicant.delete_other_document", { row_name: rowName });
+		if (res.success) {
+			emit("changed");
+		} else {
+			otherError.value = res.message || "Could not delete this document.";
+		}
+	} catch (err) {
+		otherError.value = err.messages?.[0] || "Could not delete this document.";
+	}
 }
 </script>

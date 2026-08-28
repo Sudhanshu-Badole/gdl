@@ -33,6 +33,7 @@
 					<button type="button" class="font-medium text-red-600 hover:underline" @click="remove(row.name)">Delete</button>
 				</div>
 			</div>
+			<p v-if="deleteError" class="text-sm text-red-600">{{ deleteError }}</p>
 		</div>
 
 		<form v-if="showForm" class="mt-4 space-y-3 border-t border-gray-100 pt-4" @submit.prevent="save">
@@ -66,7 +67,7 @@
 
 <script setup>
 import { ref } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../../lib/call";
 import EmptyState from "./EmptyState.vue";
 import GraduationCapIcon from "../icons/GraduationCapIcon.vue";
 
@@ -83,6 +84,7 @@ const editingRowName = ref(null);
 const form = ref(EMPTY_FORM());
 const saving = ref(false);
 const error = ref("");
+const deleteError = ref("");
 
 function startAdd() {
 	editingRowName.value = null;
@@ -126,7 +128,16 @@ async function save() {
 }
 
 async function remove(rowName) {
-	const res = await call("gdl.api.applicant.delete_education", { row_name: rowName });
-	if (res.success) emit("changed");
+	deleteError.value = "";
+	try {
+		const res = await call("gdl.api.applicant.delete_education", { row_name: rowName });
+		if (res.success) {
+			emit("changed");
+		} else {
+			deleteError.value = res.message || "Could not delete this record.";
+		}
+	} catch (err) {
+		deleteError.value = err.messages?.[0] || "Could not delete this record.";
+	}
 }
 </script>

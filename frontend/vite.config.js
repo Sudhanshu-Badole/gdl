@@ -14,8 +14,7 @@ export default defineConfig({
 	},
 	resolve: {
 		alias: {
-			'@': path.resolve(__dirname, 'src'),
-			'@doppio': path.resolve(__dirname, '../../doppio/libs')
+			'@': path.resolve(__dirname, 'src')
 		}
 	},
 	build: {

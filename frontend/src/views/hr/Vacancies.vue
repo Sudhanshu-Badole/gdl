@@ -62,25 +62,35 @@
 			</table>
 		</div>
 
+		<p v-else-if="loaded && error" class="mt-8 text-sm text-red-600">{{ error }}</p>
+
 		<p v-else-if="loaded" class="mt-8 text-sm text-body">No vacancies yet.</p>
 
 		<div v-else class="mt-8 space-y-3">
 			<div v-for="i in 5" :key="i" class="h-12 animate-pulse rounded-md bg-gray-100"></div>
 		</div>
+
+		<p v-if="actionError" class="mt-3 text-sm text-red-600">{{ actionError }}</p>
 	</div>
 </template>
 
 <script setup>
 import { ref, onMounted } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../../lib/call";
 
 const vacancies = ref([]);
 const loaded = ref(false);
+const error = ref("");
 const closingName = ref(null);
+const actionError = ref("");
 
 async function loadVacancies() {
-	const res = await call("gdl.api.hr.list_vacancies");
-	vacancies.value = res?.data || [];
+	try {
+		const res = await call("gdl.api.hr.list_vacancies");
+		vacancies.value = res?.data || [];
+	} catch (err) {
+		error.value = err.messages?.[0] || "Could not load vacancies.";
+	}
 }
 
 onMounted(async () => {
@@ -93,9 +103,12 @@ onMounted(async () => {
 
 async function closeApplications(vacancy) {
 	closingName.value = vacancy.name;
+	actionError.value = "";
 	try {
 		await call("gdl.api.hr.close_vacancy_applications", { name: vacancy.name });
 		await loadVacancies();
+	} catch (err) {
+		actionError.value = err.messages?.[0] || "Could not close applications.";
 	} finally {
 		closingName.value = null;
 	}

@@ -1,0 +1,1 @@
+function e(e){if(!e)return null;let t=new Date(`${e}T00:00:00`),n=new Date;n.setHours(0,0,0,0);let r=Math.round((t-n)/864e5),i=t.toLocaleDateString(`en-GB`,{day:`numeric`,month:`short`,year:`numeric`});return r===0?`Closes ${i} (today)`:r===1?`Closes ${i} (tomorrow)`:r<0?`Closed ${i} (${Math.abs(r)} day${Math.abs(r)===1?``:`s`} ago)`:`Closes ${i}`}export{e as t};

@@ -13,6 +13,7 @@ import frappe
 
 from gdl.api.response import success
 from gdl.utils.completeness import COMPLETENESS_THRESHOLD
+from gdl.utils.exam_scoring import finalize_attempt_grading
 from gdl.utils.exceptions import gdl_error
 from gdl.utils.logger import get_logger
 from gdl.utils.notifications import send_email_or_log
@@ -431,11 +432,270 @@ def get_application_detail(name):
 		data={
 			"application": application.as_dict(),
 			"job_opening": job_opening,
-			# Honest empty states - Phases 5-9 will populate these once
-			# exams/interviews/offers exist, same pattern as the Phase 3 dashboard.
-			"exam_schedule": None,
+			"exam_schedule": _exam_schedule_for(application),
+			# Honest empty states - Phases 7-9 will populate these once
+			# interviews/offers exist, same pattern as the Phase 3 dashboard.
 			"interview_schedule": None,
 			"scores": None,
 			"offer": None,
 		}
 	)
+
+
+def _exam_schedule_for(application):
+	"""None until an Exam Attempt exists for this application (i.e. an exam
+	has actually been published for the vacancy and this applicant invited).
+	Score/pass-fail are withheld unless the vacancy owner opted into
+	publishing them (gdl_publish_exam_scores) and grading is complete."""
+	attempt = frappe.db.get_value(
+		"Exam Attempt",
+		{"job_application": application.name},
+		["name", "exam", "status", "total_score", "is_pass", "is_fully_graded"],
+		as_dict=True,
+		order_by="creation desc",
+	)
+	if not attempt:
+		return None
+
+	exam = frappe.db.get_value("Exam", attempt.exam, ["title", "opens_on", "closes_on"], as_dict=True)
+	publish_scores = frappe.db.get_value("Job Opening", application.job_opening, "gdl_publish_exam_scores")
+	show_score = bool(publish_scores) and bool(attempt.is_fully_graded)
+
+	return {
+		"attempt": attempt.name,
+		"exam_title": exam.title,
+		"opens_on": exam.opens_on,
+		"closes_on": exam.closes_on,
+		"status": attempt.status,
+		"total_score": attempt.total_score if show_score else None,
+		"is_pass": attempt.is_pass if show_score else None,
+	}
+
+
+# Phase 6 - Examination (online exam core). Every method below re-checks
+# ownership via _get_own_attempt (job_applicant on the attempt must match the
+# caller's own Job Applicant), same convention as _get_own_job_applicant used
+# throughout this file.
+
+
+def _get_own_attempt(name):
+	applicant_doc = _get_own_job_applicant()
+	attempt = frappe.get_doc("Exam Attempt", name)
+	if attempt.job_applicant != applicant_doc.name:
+		gdl_error("Exam not found.")
+	return attempt
+
+
+def _check_exam_window(attempt, exam):
+	"""Only enforced for an attempt still Invited/In Progress - a Submitted
+	(or already Not Attended) attempt must stay viewable after the window
+	closes, e.g. from the applicant revisiting the link on their application
+	detail page, so this is a no-op for those terminal statuses."""
+	if attempt.status not in ("Invited", "In Progress"):
+		return
+
+	now = frappe.utils.now_datetime()
+	if now < exam.opens_on:
+		gdl_error("This exam has not opened yet.")
+	if now > exam.closes_on:
+		frappe.db.set_value("Exam Attempt", attempt.name, "status", "Not Attended")
+		frappe.db.set_value("Job Application", attempt.job_application, "status", "Exam Not Attended")
+		gdl_error("The exam window has closed.")
+
+
+@frappe.whitelist()
+def get_active_exam():
+	"""Dashboard banner data: the caller's own Exam Attempt (not yet
+	submitted) whose exam window is currently open, if any."""
+	applicant_doc = _get_own_job_applicant()
+	attempts = frappe.get_all(
+		"Exam Attempt",
+		filters={"job_applicant": applicant_doc.name, "status": ["in", ["Invited", "In Progress"]]},
+		fields=["name", "exam", "job_application"],
+	)
+	now = frappe.utils.now_datetime()
+	for attempt in attempts:
+		exam = frappe.db.get_value(
+			"Exam", attempt.exam, ["title", "opens_on", "closes_on"], as_dict=True
+		)
+		if exam and exam.opens_on <= now <= exam.closes_on:
+			job_opening = frappe.db.get_value("Job Application", attempt.job_application, "job_opening")
+			return success(
+				data={
+					"attempt": attempt.name,
+					"exam_title": exam.title,
+					"job_title": frappe.db.get_value("Job Opening", job_opening, "job_title"),
+					"opens_on": exam.opens_on,
+					"closes_on": exam.closes_on,
+				}
+			)
+	return success(data=None)
+
+
+@frappe.whitelist(methods=["POST"])
+def start_exam_attempt(name):
+	attempt = _get_own_attempt(name)
+	exam = frappe.get_doc("Exam", attempt.exam)
+	_check_exam_window(attempt, exam)
+
+	if attempt.status == "Invited":
+		attempt.db_set("status", "In Progress")
+		attempt.db_set("started_on", frappe.utils.now_datetime())
+	elif attempt.status != "In Progress":
+		gdl_error("This exam can no longer be started.")
+
+	return success(data={"status": "In Progress"})
+
+
+@frappe.whitelist()
+def get_exam_attempt(name):
+	attempt = _get_own_attempt(name)
+	exam = frappe.get_doc("Exam", attempt.exam)
+	_check_exam_window(attempt, exam)
+
+	questions = frappe.get_all(
+		"Exam Question",
+		filters={"exam": exam.name},
+		fields=[
+			"name",
+			"sequence",
+			"question_type",
+			"question_text",
+			"option_a",
+			"option_b",
+			"option_c",
+			"option_d",
+			"marks",
+		],
+		order_by="sequence asc, creation asc",
+	)
+	saved_answers = {
+		row.question: row
+		for row in frappe.get_all(
+			"Exam Attempt Answer",
+			filters={"parent": name},
+			fields=["question", "selected_option", "short_answer_text"],
+		)
+	}
+	job_opening = frappe.db.get_value("Job Application", attempt.job_application, "job_opening")
+
+	return success(
+		data={
+			"attempt": {"name": attempt.name, "status": attempt.status, "started_on": attempt.started_on},
+			"job_title": frappe.db.get_value("Job Opening", job_opening, "job_title"),
+			"exam": {
+				"title": exam.title,
+				"instructions": exam.instructions,
+				"duration_minutes": exam.duration_minutes,
+				"opens_on": exam.opens_on,
+				"closes_on": exam.closes_on,
+			},
+			"questions": [{**q, "answer": saved_answers.get(q.name)} for q in questions],
+		}
+	)
+
+
+@frappe.whitelist(methods=["POST"])
+def save_exam_answer(attempt, question, selected_option=None, short_answer_text=None):
+	attempt_doc = _get_own_attempt(attempt)
+	if attempt_doc.status != "In Progress":
+		gdl_error("This exam is not in progress.")
+	exam = frappe.get_doc("Exam", attempt_doc.exam)
+	_check_exam_window(attempt_doc, exam)
+	if not frappe.db.exists("Exam Question", {"name": question, "exam": attempt_doc.exam}):
+		gdl_error("Invalid question for this exam.")
+
+	# Direct child-row insert/update (parent/parenttype/parentfield set by
+	# hand) rather than loading + re-saving the whole Exam Attempt on every
+	# keystroke's autosave - cheaper, and avoids concurrent autosave calls
+	# clobbering each other's writes to other questions.
+	row_name = frappe.db.get_value("Exam Attempt Answer", {"parent": attempt, "question": question}, "name")
+	if row_name:
+		answer = frappe.get_doc("Exam Attempt Answer", row_name)
+		answer.selected_option = selected_option
+		answer.short_answer_text = short_answer_text
+		answer.save(ignore_permissions=True)
+	else:
+		frappe.get_doc(
+			{
+				"doctype": "Exam Attempt Answer",
+				"parent": attempt,
+				"parenttype": "Exam Attempt",
+				"parentfield": "answers",
+				"question": question,
+				"selected_option": selected_option,
+				"short_answer_text": short_answer_text,
+			}
+		).insert(ignore_permissions=True)
+
+	return success(message="Saved.")
+
+
+@frappe.whitelist(methods=["POST"])
+def submit_exam_attempt(name):
+	attempt = _get_own_attempt(name)
+	if attempt.status != "In Progress":
+		gdl_error("This exam is not in progress.")
+	exam = frappe.get_doc("Exam", attempt.exam)
+	_check_exam_window(attempt, exam)
+
+	questions = frappe.get_all(
+		"Exam Question", filters={"exam": attempt.exam}, fields=["name", "question_type", "correct_option", "marks"]
+	)
+	question_by_name = {q.name: q for q in questions}
+
+	existing_rows = frappe.get_all(
+		"Exam Attempt Answer", filters={"parent": name}, fields=["name", "question", "selected_option"]
+	)
+	answered_questions = {row.question for row in existing_rows}
+
+	for row in existing_rows:
+		question = question_by_name.get(row.question)
+		if not question or question.question_type == "Short Answer":
+			continue
+		is_correct = row.selected_option == question.correct_option
+		frappe.db.set_value(
+			"Exam Attempt Answer",
+			row.name,
+			{
+				"is_correct": 1 if is_correct else 0,
+				"score_given": question.marks if is_correct else 0,
+				"is_graded": 1,
+			},
+		)
+
+	# A question the applicant left completely blank still needs a row -
+	# Short Answer so grading (and is_fully_graded) sees it as pending
+	# rather than silently skipped, Multiple Choice/True-or-False so it's
+	# scored 0 like any other wrong answer instead of just missing.
+	for question in questions:
+		if question.name in answered_questions:
+			continue
+		if question.question_type == "Short Answer":
+			row = {
+				"doctype": "Exam Attempt Answer",
+				"parent": name,
+				"parenttype": "Exam Attempt",
+				"parentfield": "answers",
+				"question": question.name,
+				"short_answer_text": "",
+			}
+		else:
+			row = {
+				"doctype": "Exam Attempt Answer",
+				"parent": name,
+				"parenttype": "Exam Attempt",
+				"parentfield": "answers",
+				"question": question.name,
+				"is_correct": 0,
+				"score_given": 0,
+				"is_graded": 1,
+			}
+		frappe.get_doc(row).insert(ignore_permissions=True)
+
+	attempt.db_set("status", "Submitted")
+	attempt.db_set("submitted_on", frappe.utils.now_datetime())
+	attempt.reload()
+	finalize_attempt_grading(attempt)
+
+	return success(message="Exam submitted.")

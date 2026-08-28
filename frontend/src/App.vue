@@ -3,7 +3,7 @@
 	<div v-else class="flex min-h-screen flex-col bg-white">
 		<AppHeader />
 		<main class="flex-1">
-			<router-view />
+			<router-view :key="route.fullPath" />
 		</main>
 		<AppFooter />
 	</div>

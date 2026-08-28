@@ -1,17 +1,19 @@
 """HR-only endpoints backing the Vue /HR/* portal (gdl/frontend).
 
 Every function starts with require_hr() - the SPA's router guard is UX only
-(reads window.boot.roles), this is the real server-side gate. Several
-dashboard stats are literal 0 by design, not fake queries: Examination,
-Interview, Job Offer, and Appointment Letter doctypes don't exist yet
-(Phases 5-8 of the project plan haven't started), so there's nothing real to
-count for those widgets until then.
+(reads window.boot.roles), this is the real server-side gate. A few
+dashboard stats are still literal 0 by design, not fake queries: Interview,
+Job Offer, and Appointment Letter doctypes don't exist yet (Phases 7-8 of the
+project plan haven't started), so there's nothing real to count for those
+widgets until then. Examination stats are wired to gdl.api.hr_exam's
+doctypes (Phase 6).
 """
 
 import frappe
 from frappe.utils import add_days, get_first_day, get_first_day_of_week, today
 
 from gdl.api.response import success
+from gdl.utils.exceptions import gdl_error
 from gdl.utils.vacancies import FILLED_STATUSES
 
 HR_ROLES = ("HR Officer", "System Manager")
@@ -94,23 +96,47 @@ def get_dashboard_stats():
 		limit_page_length=5,
 	)
 
+	upcoming_exams_14d = frappe.db.count(
+		"Exam", {"status": "Published", "closes_on": ["between", [today(), add_days(today(), 14)]]}
+	)
+
+	draft_exam_names = frappe.get_all("Exam", {"status": "Draft"}, pluck="name")
+	ready_to_publish_exam = (
+		len(set(frappe.get_all("Exam Question", filters={"exam": ["in", draft_exam_names]}, pluck="exam")))
+		if draft_exam_names
+		else 0
+	)
+
+	submitted_attempt_names = frappe.get_all("Exam Attempt", {"status": "Submitted"}, pluck="name")
+	exam_grades_pending = (
+		len(
+			set(
+				frappe.get_all(
+					"Exam Attempt Answer",
+					filters={"is_graded": 0, "parent": ["in", submitted_attempt_names]},
+					pluck="parent",
+				)
+			)
+		)
+		if submitted_attempt_names
+		else 0
+	)
+
 	return success(
 		data={
 			"overview": {
 				"open_vacancies": open_vacancies,
 				"applications_this_week": applications_this_week,
-				# Placeholders - no Examination/Interview doctype yet (Phases 5/6).
-				"upcoming_exams_14d": 0,
+				"upcoming_exams_14d": upcoming_exams_14d,
+				# Placeholder - no Interview doctype yet (Phase 7).
 				"upcoming_interviews_14d": 0,
 			},
 			"needs_action": {
 				"pending_document_review": pending_document_review,
-				# Placeholders - no Examination doctype yet (Phase 5).
-				"ready_to_publish_exam": 0,
-				# Placeholder - no Interview doctype yet (Phase 6).
+				"ready_to_publish_exam": ready_to_publish_exam,
+				# Placeholder - no Interview doctype yet (Phase 7).
 				"ready_to_publish_interview": 0,
-				# Placeholder - no Examination doctype yet (Phase 5).
-				"exam_grades_pending": 0,
+				"exam_grades_pending": exam_grades_pending,
 				# Placeholder - no Job Offer equivalent yet (Phase 8).
 				"offers_awaiting_response": 0,
 				# Placeholder - no Appointment Letter doctype yet (Phase 8).
@@ -196,7 +222,7 @@ def close_vacancy_applications(name):
 
 	opening = frappe.get_doc("Job Opening", name)
 	if opening.status == "Closed":
-		frappe.throw("This vacancy is already closed.")
+		gdl_error("This vacancy is already closed.")
 
 	opening.db_set("status", "Closed")
 	opening.db_set("closed_on", today())

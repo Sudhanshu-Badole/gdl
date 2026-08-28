@@ -28,7 +28,7 @@
 				<UserMenu :display-name="boot.full_name || boot.user" :email="boot.user" role-label="HR" />
 			</header>
 			<main class="flex-1 bg-white px-8 py-8">
-				<router-view />
+				<router-view :key="route.fullPath" />
 			</main>
 		</div>
 	</div>

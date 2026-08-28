@@ -30,7 +30,7 @@ app_license = "mit"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/gdl/css/gdl.css"
-web_include_js = "/assets/gdl/js/gdl_api.js"
+# web_include_js = "/assets/gdl/js/gdl.js"
 
 # include custom scss in every website theme (without file extension ".scss")
 # website_theme_scss = "gdl/public/scss/website"
@@ -88,8 +88,15 @@ fixtures = [
 	{"dt": "Department", "filters": [["company", "=", "GreenDigital Ltd"]]},
 	{"dt": "Designation"},
 	{"dt": "Staffing Plan", "filters": [["company", "=", "GreenDigital Ltd"]]},
-	# every gdl_-prefixed custom field, on any doctype, auto-captured
-	{"dt": "Custom Field", "filters": [["fieldname", "like", "gdl_%"]]},
+	# every gdl_-prefixed custom field, on any doctype, auto-captured. New
+	# Custom Fields use the custom_ prefix instead (Frappe's own Customize
+	# Form convention) - or_filters, not two separate entries: two fixture
+	# entries for the same dt export to the same filename (frappe.scrub(dt)
+	# + ".json") and the second silently overwrites the first's output.
+	{
+		"dt": "Custom Field",
+		"or_filters": [["fieldname", "like", "gdl_%"], ["fieldname", "like", "custom_%"]],
+	},
 	# Job Opening's VAC-.YYYY.-.#### naming series (Customize Form -> Autoname)
 	{"dt": "Property Setter", "filters": [["doc_type", "=", "Job Opening"], ["property", "=", "autoname"]]},
 	# Standard HRMS master data that isn't guaranteed to exist on every site
@@ -116,13 +123,17 @@ website_route_rules = [
 	# the Applicant Portal User guard in frontend/src/router/index.js, same
 	# pattern as /HR/* above). URLs are unchanged from the old Jinja pages -
 	# they're hardcoded in gdl.api.public.register_applicant's redirect_to,
-	# confirmation emails, and apply/new.html's "Edit Profile" link - only
-	# what serves them changed. /apply/new deliberately has no rule here and
-	# still serves from the old physical www/apply/new.py page.
+	# confirmation emails, and "Apply now" links - only what serves them
+	# changed. /apply/new was the last surviving old Jinja page (it had a
+	# real, previously-undetected CSRF bug - see ApplyNew.vue's history for
+	# details) and is now ported here too, same pattern as the rest.
 	{"from_route": "/dashboard", "to_route": "frontend"},
 	{"from_route": "/applications", "to_route": "frontend"},
 	{"from_route": "/applications/<path:name>", "to_route": "frontend"},
 	{"from_route": "/complete-profile", "to_route": "frontend"},
+	{"from_route": "/apply/new", "to_route": "frontend"},
+	# Phase 6 - one applicant-facing exam-taking page per Exam Attempt.
+	{"from_route": "/exams/<path:name>", "to_route": "frontend"},
 	# Vue public site (gdl/frontend). "/" itself is handled entirely by the
 	# home_page hook (get_home_page() substitutes it before route rules are
 	# even consulted - see resolve_path() in Frappe core), not a rule here.

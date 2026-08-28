@@ -1,17 +1,18 @@
 [
  {
-  "doctype": "Property Setter",
-  "name": "Job Opening-main-autoname",
+  "default_value": null,
   "doc_type": "Job Opening",
+  "docstatus": 0,
+  "doctype": "Property Setter",
   "doctype_or_field": "DocType",
   "field_name": null,
-  "row_name": null,
+  "is_system_generated": 0,
+  "modified": "2026-08-26 23:01:52.624151",
+  "module": null,
+  "name": "Job Opening-main-autoname",
   "property": "autoname",
   "property_type": "Data",
-  "value": "VAC-.YYYY.-.####",
-  "default_value": null,
-  "module": null,
-  "is_system_generated": 0,
-  "docstatus": 0
+  "row_name": null,
+  "value": "VAC-.YYYY.-.####"
  }
 ]

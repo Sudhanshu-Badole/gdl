@@ -24,7 +24,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../../lib/call";
 import ApplicationCard from "../../components/applicant/ApplicationCard.vue";
 import EmptyState from "../../components/applicant/EmptyState.vue";
 import SearchIcon from "../../components/icons/SearchIcon.vue";

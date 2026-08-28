@@ -1,4 +1,4 @@
-// Multipart-upload counterpart to @doppio/controllers/call.js - that helper
+// Multipart-upload counterpart to ./call.js - that helper
 // only POSTs JSON, but gdl.api.applicant's upload_* endpoints read
 // frappe.request.files["file"] + frappe.form_dict, which requires an actual
 // FormData body. Mirrors call.js's CSRF header and 401/403-redirect/error

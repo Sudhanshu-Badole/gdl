@@ -20,6 +20,20 @@ HR_OFFICER_GRANTS = {
 	# Task 4.0
 	"Job Application": {"read": 1, "write": 1, "create": 1, "delete": 1},
 	"Vacancy Category": {"read": 1, "write": 1, "create": 1, "delete": 1},
+	# Phase 5 - checklist templates are admin-configuration (Desk), scoring
+	# records are day-to-day HR work (also Desk-permissioned here, even
+	# though entered via the Vue Shortlist tab through gdl.api.hr_shortlisting,
+	# since that module runs as the HR user's own session, not Administrator).
+	"Shortlisting Checklist Template": {"read": 1, "write": 1, "create": 1, "delete": 1},
+	"Shortlisting Score": {"read": 1, "write": 1, "create": 1, "delete": 1},
+	# Phase 6 - question bank, scheduling, and attempt review/grading, same
+	# Desk-permissioned-but-used-via-Vue pattern as Shortlisting above. "Exam
+	# Attempt Answer" is a child table (of Exam Attempt) - like "Shortlisting
+	# Criterion Score" above, it needs no grant of its own; access follows
+	# its parent's permission.
+	"Exam": {"read": 1, "write": 1, "create": 1, "delete": 1},
+	"Exam Question": {"read": 1, "write": 1, "create": 1, "delete": 1},
+	"Exam Attempt": {"read": 1, "write": 1, "create": 1, "delete": 1},
 }
 
 PANEL_MEMBER_GRANTS = {
@@ -42,6 +56,11 @@ APPLICANT_PORTAL_USER_GRANTS = {
 	# profile. Same owner-setting caveat as Job Applicant: whatever creates
 	# the Job Application record must explicitly set owner afterwards.
 	"Job Application": {"read": 1, "create": 1, "if_owner": 1},
+	# Phase 6 - backstop alongside gdl.api.applicant._get_own_attempt()'s
+	# manual ownership check, same if_owner pattern as above. Requires
+	# gdl.api.hr_exam.publish_exam to explicitly set owner = the applicant's
+	# user after insert (Exam Attempts are created by HR, not the applicant).
+	"Exam Attempt": {"read": 1, "if_owner": 1},
 }
 
 ROLE_PROFILES = {

@@ -11,6 +11,36 @@ from frappe.utils.file_manager import save_file
 
 from gdl.utils.exceptions import gdl_error
 
+# First bytes of each allowed file type, checked against the actual upload
+# content - the extension alone is just a filename string an attacker can
+# freely spoof. Only covers the extensions this app's callers ever pass in
+# (DOCUMENT_EXTENSIONS/PROFILE_PHOTO_EXTENSIONS in gdl.api.applicant); an
+# extension with no entry here just skips the content check.
+MAGIC_BYTES = {
+	"pdf": (b"%PDF",),
+	"jpg": (b"\xff\xd8\xff",),
+	"jpeg": (b"\xff\xd8\xff",),
+	"png": (b"\x89PNG\r\n\x1a\n",),
+	"docx": (b"PK\x03\x04",),
+}
+
+CHUNK_SIZE = 1024 * 1024
+
+
+def _read_with_limit(stream, max_size_mb):
+	"""Reject an oversized upload as soon as it crosses the cap instead of
+	buffering the whole thing into memory first just to measure it."""
+	max_bytes = max_size_mb * 1024 * 1024
+	buf = bytearray()
+	while True:
+		chunk = stream.read(CHUNK_SIZE)
+		if not chunk:
+			break
+		buf.extend(chunk)
+		if len(buf) > max_bytes:
+			gdl_error(f"File too large. Maximum is {max_size_mb} MB")
+	return bytes(buf)
+
 
 def _validate_upload(allowed_extensions, max_size_mb):
 	if "file" not in frappe.request.files:
@@ -22,10 +52,11 @@ def _validate_upload(allowed_extensions, max_size_mb):
 	if ext not in allowed_extensions:
 		gdl_error(f"Unsupported file type .{ext}. Allowed: {', '.join(allowed_extensions)}")
 
-	content = upload.stream.read()
-	size_mb = len(content) / (1024 * 1024)
-	if size_mb > max_size_mb:
-		gdl_error(f"File too large ({size_mb:.1f} MB). Maximum is {max_size_mb} MB")
+	content = _read_with_limit(upload.stream, max_size_mb)
+
+	signatures = MAGIC_BYTES.get(ext)
+	if signatures and not any(content.startswith(sig) for sig in signatures):
+		gdl_error(f"This file doesn't look like a valid .{ext} file.")
 
 	return filename, content
 

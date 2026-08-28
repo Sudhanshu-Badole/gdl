@@ -92,7 +92,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../../lib/call";
 import BuildingIcon from "../../components/icons/BuildingIcon.vue";
 import ClockIcon from "../../components/icons/ClockIcon.vue";
 import UsersIcon from "../../components/icons/UsersIcon.vue";

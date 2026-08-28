@@ -38,7 +38,8 @@
 			</label>
 		</div>
 
-		<p v-if="loaded && !vacancies.length" class="text-sm text-body">
+		<p v-if="loaded && error" class="text-sm text-red-600">{{ error }}</p>
+		<p v-else-if="loaded && !vacancies.length" class="text-sm text-body">
 			No open vacancies right now - check back soon.
 		</p>
 		<div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -49,12 +50,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../lib/call";
 import IntentionNotice from "../components/IntentionNotice.vue";
 import VacancyCard from "../components/VacancyCard.vue";
 
 const allVacancies = ref([]);
 const loaded = ref(false);
+const error = ref("");
 
 // Local inputs vs. applied filters - filtering only happens on "Filter"
 // click (or Enter in the search box), not live-as-you-type, matching the
@@ -82,10 +84,15 @@ const vacancies = computed(() => {
 });
 
 async function loadVacancies() {
-	const res = await call("gdl.api.public.get_open_vacancies", {
-		include_recent: includeRecentInput.value ? 1 : 0,
-	});
-	allVacancies.value = res?.data || [];
+	error.value = "";
+	try {
+		const res = await call("gdl.api.public.get_open_vacancies", {
+			include_recent: includeRecentInput.value ? 1 : 0,
+		});
+		allVacancies.value = res?.data || [];
+	} catch (err) {
+		error.value = err.messages?.[0] || "Could not load vacancies.";
+	}
 }
 
 function applyFilters() {

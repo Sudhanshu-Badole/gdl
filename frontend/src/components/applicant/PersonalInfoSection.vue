@@ -67,7 +67,7 @@
 
 <script setup>
 import { ref, watch } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../../lib/call";
 
 const props = defineProps({
 	applicant: { type: Object, required: true },

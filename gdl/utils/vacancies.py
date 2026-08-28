@@ -59,6 +59,11 @@ def auto_close_job_opening_if_filled(doc, method=None):
 	if job_opening.status != "Open" or not job_opening.gdl_number_of_positions:
 		return
 
+	# Row lock: two Job Applications reaching a filled status for the last
+	# open position at nearly the same time would otherwise both read the
+	# same pre-commit count below and neither trigger auto-close.
+	frappe.db.get_value("Job Opening", doc.job_opening, "name", for_update=True)
+
 	filled_count = frappe.db.count(
 		"Job Application",
 		filters={"job_opening": doc.job_opening, "status": ["in", list(FILLED_STATUSES)]},

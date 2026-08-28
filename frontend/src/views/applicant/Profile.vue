@@ -33,7 +33,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../../lib/call";
 import ProfileCompletenessCard from "../../components/applicant/ProfileCompletenessCard.vue";
 import PhotoCard from "../../components/applicant/PhotoCard.vue";
 import PersonalInfoSection from "../../components/applicant/PersonalInfoSection.vue";

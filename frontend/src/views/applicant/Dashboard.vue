@@ -4,6 +4,7 @@
 		<p class="mt-1 text-sm text-body">Track your applications and complete any pending actions.</p>
 
 		<ProfileCompletenessBanner :value="data.profile_completeness" />
+		<ActiveExamBanner v-if="activeExam" :exam="activeExam" />
 
 		<div class="grid gap-6 lg:grid-cols-3">
 			<div class="lg:col-span-2">
@@ -82,8 +83,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../../lib/call";
 import ProfileCompletenessBanner from "../../components/applicant/ProfileCompletenessBanner.vue";
+import ActiveExamBanner from "../../components/applicant/ActiveExamBanner.vue";
 import ApplicationCard from "../../components/applicant/ApplicationCard.vue";
 import EmptyState from "../../components/applicant/EmptyState.vue";
 import DocumentRow from "../../components/applicant/DocumentRow.vue";
@@ -93,6 +95,7 @@ import BellIcon from "../../components/icons/BellIcon.vue";
 const data = ref(null);
 const loaded = ref(false);
 const error = ref("");
+const activeExam = ref(null);
 
 const fixedDocumentRows = computed(() => {
 	if (!data.value) return [];
@@ -117,6 +120,13 @@ onMounted(async () => {
 		error.value = err.messages?.[0] || "Could not load dashboard.";
 	} finally {
 		loaded.value = true;
+	}
+
+	try {
+		const res = await call("gdl.api.applicant.get_active_exam");
+		activeExam.value = res?.data || null;
+	} catch {
+		activeExam.value = null;
 	}
 });
 </script>

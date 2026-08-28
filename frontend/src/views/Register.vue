@@ -77,7 +77,7 @@
 
 <script setup>
 import { reactive, ref } from "vue";
-import call from "@doppio/controllers/call";
+import call from "../lib/call";
 
 const form = reactive({ full_name: "", email: "", phone: "", password: "" });
 const submitting = ref(false);
