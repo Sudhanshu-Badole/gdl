@@ -1,8 +1,11 @@
 <template>
 	<form class="mt-3 space-y-3 rounded-md border border-gray-200 bg-gray-50 p-4" @submit.prevent="save">
-		<div v-for="(row, i) in rows" :key="row.criterion_label" class="flex items-center justify-between gap-3">
-			<span class="text-sm text-ink">{{ row.criterion_label }}</span>
-			<div class="flex items-center gap-2">
+		<div v-for="(row, i) in rows" :key="row.criterion_label" class="flex items-start justify-between gap-3">
+			<div>
+				<span class="text-sm text-ink">{{ row.criterion_label }}</span>
+				<p v-if="row.description" class="mt-0.5 text-xs text-body">{{ row.description }}</p>
+			</div>
+			<div class="flex shrink-0 items-center gap-2">
 				<input
 					v-model.number="row.score_given"
 					type="number"
@@ -42,7 +45,12 @@ const emit = defineEmits(["saved", "cancel"]);
 function initialRows() {
 	return props.criteria.map((c) => {
 		const existing = props.existingScores.find((s) => s.criterion_label === c.criterion_label);
-		return { criterion_label: c.criterion_label, max_score: c.max_score, score_given: existing?.score_given ?? 0 };
+		return {
+			criterion_label: c.criterion_label,
+			description: c.description,
+			max_score: c.max_score,
+			score_given: existing?.score_given ?? 0,
+		};
 	});
 }
 

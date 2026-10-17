@@ -35,7 +35,7 @@
 			:disabled="saving"
 			class="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
 		>
-			{{ existing ? "Save exam details" : "Create exam" }}
+			{{ existing ? "Save test details" : "Create test" }}
 		</button>
 	</form>
 </template>
@@ -92,10 +92,10 @@ async function save() {
 			message.value = res.message;
 			emit("saved");
 		} else {
-			error.value = res.message || "Could not save exam.";
+			error.value = res.message || "Could not save test.";
 		}
 	} catch (err) {
-		error.value = err.messages?.[0] || "Could not save exam.";
+		error.value = err.messages?.[0] || "Could not save test.";
 	} finally {
 		saving.value = false;
 	}

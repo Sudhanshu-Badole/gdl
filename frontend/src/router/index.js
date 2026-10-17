@@ -41,6 +41,7 @@ const routes = [
 				props: true,
 			},
 			{ path: "Candidates", name: "HRCandidates", component: () => import("../views/hr/Candidates.vue") },
+			{ path: "Question-bank", name: "HRQuestionBank", component: () => import("../views/hr/QuestionBank.vue") },
 			{ path: "Letters", name: "HRLetters", component: () => import("../views/hr/Letters.vue") },
 			{ path: "Audit-log", name: "HRAuditLog", component: () => import("../views/hr/AuditLog.vue") },
 			{ path: "Settings", name: "HRSettings", component: () => import("../views/hr/Settings.vue") },
@@ -91,6 +92,30 @@ const routes = [
 		meta: { isAdmin: true },
 		children: [{ path: "", name: "ExamAttempt", component: () => import("../views/applicant/ExamAttempt.vue") }],
 	},
+	// Panel portal (Phase 7) - lowercase "panel" prefix matches
+	// gdl.auth.get_home_page's existing redirect target for the Panel
+	// Member role, same shared-prefix pattern as /HR above.
+	{
+		path: "/panel",
+		component: () => import("../layouts/PanelLayout.vue"),
+		meta: { isAdmin: true },
+		children: [
+			{ path: "dashboard", name: "PanelDashboard", component: () => import("../views/panel/Dashboard.vue") },
+			{ path: "past", name: "PanelPast", component: () => import("../views/panel/Past.vue") },
+			{
+				path: "interviews/:interview",
+				name: "PanelInterviewCandidates",
+				component: () => import("../views/panel/InterviewCandidates.vue"),
+				props: true,
+			},
+			{
+				path: "sessions/:session",
+				name: "PanelScorecard",
+				component: () => import("../views/panel/Scorecard.vue"),
+				props: true,
+			},
+		],
+	},
 ];
 
 const router = createRouter({
@@ -112,6 +137,7 @@ const GATED_PORTALS = [
 		roles: ["Applicant Portal User"],
 		homePath: "/dashboard",
 	},
+	{ prefixes: ["/panel"], roles: ["Panel Member"], homePath: "/panel/dashboard" },
 ];
 
 function matchPortal(path) {
@@ -147,8 +173,7 @@ router.beforeEach((to) => {
 	if (!portal.roles.some((r) => roles.includes(r))) {
 		// Full page nav (not router.push): get_website_user_home_page
 		// (gdl.auth.get_home_page) still reliably resolves "/" server-side to
-		// whatever page this user's actual role owns (including Panel Member,
-		// which isn't in GATED_PORTALS since its portal isn't built yet).
+		// whatever page this user's actual role owns.
 		window.location.href = "/";
 		return false;
 	}

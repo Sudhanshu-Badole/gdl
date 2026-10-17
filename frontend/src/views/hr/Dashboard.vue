@@ -19,7 +19,7 @@
 				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 					<StatCard :icon="BriefcaseIcon" :value="stats.overview.open_vacancies" label="Open vacancies" />
 					<StatCard :icon="SendIcon" :value="stats.overview.applications_this_week" label="Applications this week" />
-					<StatCard :icon="ClockIcon" :value="stats.overview.upcoming_exams_14d" label="Upcoming exams (14d)" />
+					<StatCard :icon="ClockIcon" :value="stats.overview.upcoming_exams_14d" label="Upcoming tests (14d)" />
 					<StatCard :icon="ClockIcon" :value="stats.overview.upcoming_interviews_14d" label="Upcoming interviews (14d)" />
 				</div>
 			</section>
@@ -33,13 +33,13 @@
 						label="Pending document review"
 						:highlight="stats.needs_action.pending_document_review > 0"
 					/>
-					<StatCard :icon="SendIcon" :value="stats.needs_action.ready_to_publish_exam" label="Ready to publish exam" />
+					<StatCard :icon="SendIcon" :value="stats.needs_action.ready_to_publish_exam" label="Ready to publish test" />
 					<StatCard
 						:icon="SendIcon"
 						:value="stats.needs_action.ready_to_publish_interview"
 						label="Ready to publish interview"
 					/>
-					<StatCard :icon="DocCheckIcon" :value="stats.needs_action.exam_grades_pending" label="Exam grades pending" />
+					<StatCard :icon="DocCheckIcon" :value="stats.needs_action.exam_grades_pending" label="Test grades pending" />
 					<StatCard
 						:icon="TrophyIcon"
 						:value="stats.needs_action.offers_awaiting_response"

@@ -19,7 +19,8 @@
 					<tr>
 						<th class="px-4 py-3 font-medium">Title</th>
 						<th class="px-4 py-3 font-medium">Ref</th>
-						<th class="px-4 py-3 font-medium">Department</th>
+						<th class="px-4 py-3 font-medium">Office</th>
+						<th class="px-4 py-3 font-medium">Open date</th>
 						<th class="px-4 py-3 font-medium">Applications</th>
 						<th class="px-4 py-3 font-medium">Positions</th>
 						<th class="px-4 py-3 font-medium">Deadline</th>
@@ -36,12 +37,13 @@
 						</td>
 						<td class="px-4 py-4 text-body">{{ v.name }}</td>
 						<td class="px-4 py-4 text-body">{{ v.department || "—" }}</td>
+						<td class="px-4 py-4 text-body">{{ formatDate(v.posted_on) }}</td>
 						<td class="px-4 py-4 text-body">{{ v.applications_count }}</td>
 						<td class="px-4 py-4 text-body">{{ v.positions_filled }}/{{ v.positions_total }}</td>
 						<td class="px-4 py-4 text-body">{{ formatDate(v.closes_on) }}</td>
 						<td class="px-4 py-4">
 							<span class="rounded-full px-3 py-1 text-xs font-semibold" :class="statusBadgeClass(v.computed_status)">
-								{{ v.computed_status.toUpperCase() }}
+								{{ statusLabel(v.computed_status).toUpperCase() }}
 							</span>
 						</td>
 						<td class="px-4 py-4 text-right">
@@ -54,7 +56,7 @@
 								Close applications
 							</button>
 							<span v-else class="rounded-md border border-gray-200 px-3 py-1.5 text-sm text-body/70">
-								{{ v.computed_status === "Filled" ? "Vacancy filled" : "Open for applications" }}
+								{{ v.computed_status === "Filled" ? "Closed" : "Open for applications" }}
 							</span>
 						</td>
 					</tr>
@@ -114,13 +116,23 @@ async function closeApplications(vacancy) {
 	}
 }
 
-function formatDate(closesOn) {
-	if (!closesOn) return "—";
-	return new Date(`${closesOn}T00:00:00`).toLocaleDateString("en-GB", {
+function formatDate(value) {
+	if (!value) return "—";
+	// posted_on comes back as a Datetime ("YYYY-MM-DD HH:MM:SS"); closes_on as
+	// a plain Date ("YYYY-MM-DD") - normalize both to something Date() parses.
+	const isoish = value.includes(" ") ? value.replace(" ", "T") : `${value}T00:00:00`;
+	return new Date(isoish).toLocaleDateString("en-GB", {
 		day: "numeric",
 		month: "short",
 		year: "numeric",
 	});
+}
+
+function statusLabel(status) {
+	// Client feedback: "Vacancy Filled" should read as "Closed" - the
+	// underlying computed_status value ("Filled") stays as-is since other
+	// code (statusBadgeClass, the button v-if above) still keys off it.
+	return status === "Filled" ? "Closed" : status;
 }
 
 function statusBadgeClass(status) {

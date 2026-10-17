@@ -13,9 +13,10 @@ from frappe.utils import get_url, now_datetime
 
 from gdl.api.hr import require_hr
 from gdl.api.response import success
+from gdl.utils.audit import set_application_status
 from gdl.utils.exam_scoring import finalize_attempt_grading
 from gdl.utils.exceptions import gdl_error, gdl_log_error
-from gdl.utils.notifications import send_email_or_log
+from gdl.utils.notifications import notify_user, send_email_or_log
 
 ACTIVE_STATUSES = ("Draft", "Published")
 
@@ -55,7 +56,7 @@ def create_exam(job_opening, title, instructions, duration_minutes, opens_on, cl
 	require_hr()
 
 	if _get_active_exam(job_opening):
-		gdl_error("An exam already exists for this vacancy. Edit or archive it before creating another.")
+		gdl_error("A test already exists for this vacancy. Edit or archive it before creating another.")
 
 	exam = frappe.get_doc(
 		{
@@ -71,7 +72,7 @@ def create_exam(job_opening, title, instructions, duration_minutes, opens_on, cl
 		}
 	)
 	exam.insert()
-	return success(data=exam.as_dict(), message="Exam created.")
+	return success(data=exam.as_dict(), message="Test created.")
 
 
 @frappe.whitelist(methods=["POST"])
@@ -80,13 +81,13 @@ def update_exam(name, **fields):
 
 	exam = frappe.get_doc("Exam", name)
 	if exam.status != "Draft":
-		gdl_error("Only a Draft exam can be edited.")
+		gdl_error("Only a Draft test can be edited.")
 
 	for field in ("title", "instructions", "duration_minutes", "opens_on", "closes_on", "pass_marks"):
 		if field in fields:
 			exam.set(field, fields[field])
 	exam.save()
-	return success(data=exam.as_dict(), message="Exam updated.")
+	return success(data=exam.as_dict(), message="Test updated.")
 
 
 @frappe.whitelist(methods=["POST"])
@@ -95,7 +96,7 @@ def add_question(exam, question_type, question_text, marks, option_a=None, optio
 
 	exam_doc = frappe.get_doc("Exam", exam)
 	if exam_doc.status != "Draft":
-		gdl_error("Questions can only be added while the exam is a Draft.")
+		gdl_error("Questions can only be added while the test is a Draft.")
 
 	next_sequence = (frappe.db.count("Exam Question", {"exam": exam}) or 0) + 1
 	if question_type == "True or False":
@@ -127,7 +128,7 @@ def update_question(name, **fields):
 	question = frappe.get_doc("Exam Question", name)
 	exam_doc = frappe.get_doc("Exam", question.exam)
 	if exam_doc.status != "Draft":
-		gdl_error("Questions can only be edited while the exam is a Draft.")
+		gdl_error("Questions can only be edited while the test is a Draft.")
 
 	for field in (
 		"question_type",
@@ -154,25 +155,36 @@ def delete_question(name):
 	question = frappe.get_doc("Exam Question", name)
 	exam_doc = frappe.get_doc("Exam", question.exam)
 	if exam_doc.status != "Draft":
-		gdl_error("Questions can only be removed while the exam is a Draft.")
+		gdl_error("Questions can only be removed while the test is a Draft.")
 
 	frappe.delete_doc("Exam Question", name)
 	return success(message="Question removed.")
 
 
 def _exam_invite_email(applicant, exam, job_title):
+	# User-facing copy says "test" (client feedback, Phase 2 relabel) - the
+	# route, doctype names, and Job Application.status vocabulary stay "exam"
+	# internally, see frontend/src/utils/statusLabels.js for the rationale.
 	link = get_url(f"/exams/{applicant['attempt_name']}")
 	message = f"""
 		<p>Hi {frappe.utils.escape_html(applicant['applicant_name'])},</p>
-		<p>You've been invited to take the exam for <strong>{frappe.utils.escape_html(job_title)}</strong>.</p>
-		<p>Exam window: {exam.opens_on} to {exam.closes_on} ({exam.duration_minutes} minutes).</p>
-		<p>Take the exam here: <a href="{link}">{link}</a></p>
+		<p>You've been invited to take the test for <strong>{frappe.utils.escape_html(job_title)}</strong>.</p>
+		<p>Test window: {exam.opens_on} to {exam.closes_on} ({exam.duration_minutes} minutes).</p>
+		<p>Take the test here: <a href="{link}">{link}</a></p>
+		<p>Please confirm whether you'll be attending through the recruitment portal.</p>
 	"""
 	send_email_or_log(
 		recipients=[applicant["email_id"]],
-		subject=f"Exam scheduled - {job_title}",
+		subject=f"Test scheduled - {job_title}",
 		message=message,
-		log_fallback=f"exam invite for {applicant['email_id']}, exam {exam.name}",
+		log_fallback=f"test invite for {applicant['email_id']}, exam {exam.name}",
+	)
+	notify_user(
+		applicant["email_id"],
+		subject=f"Test scheduled - {job_title}",
+		document_type="Exam Attempt",
+		document_name=applicant["attempt_name"],
+		link=f"/exams/{applicant['attempt_name']}",
 	)
 
 
@@ -181,18 +193,24 @@ def publish_exam(name):
 	require_hr()
 
 	exam = frappe.get_doc("Exam", name)
-	if exam.status != "Draft":
-		gdl_error("Only a Draft exam can be published.")
+	# Draft -> first publish. Published -> re-publish: a candidate advanced
+	# to "Exam Invited / Scheduled" after the first publish would otherwise
+	# never get an Exam Attempt, since that only happens here - so calling
+	# this again on an already-Published exam is how HR sweeps in anyone who
+	# arrived late (the loop below already skips anyone already invited).
+	if exam.status not in ("Draft", "Published"):
+		gdl_error("Only a Draft or Published test can be published.")
 
 	questions = _questions_for(exam.name, include_answers=False)
 	if not questions:
 		gdl_error("Add at least one question before publishing.")
 
-	# Only one Published exam per vacancy at a time - archive whatever was
-	# live before (there shouldn't normally be one, since create_exam blocks
-	# a second Draft/Published exam, but a prior Published exam from before
-	# this Draft was created is still possible).
-	for other in frappe.get_all("Exam", filters={"job_opening": exam.job_opening, "status": "Published"}):
+	# Only one Published exam per vacancy at a time - archive whatever else
+	# was live before (excluding this exam itself, in case it's already the
+	# Published one being re-run to invite late arrivals).
+	for other in frappe.get_all(
+		"Exam", filters={"job_opening": exam.job_opening, "status": "Published", "name": ["!=", exam.name]}
+	):
 		frappe.db.set_value("Exam", other.name, "status", "Archived")
 
 	job_title = frappe.db.get_value("Job Opening", exam.job_opening, "job_title")
@@ -260,7 +278,7 @@ def publish_exam(name):
 	exam.status = "Published"
 	exam.save()
 
-	return success(data={"invited": invited}, message=f"Exam published. {invited} candidate(s) invited.")
+	return success(data={"invited": invited}, message=f"Test published. {invited} candidate(s) invited.")
 
 
 @frappe.whitelist()
@@ -274,7 +292,16 @@ def get_exam_queue(job_opening):
 	attempts = frappe.get_all(
 		"Exam Attempt",
 		filters={"exam": exam.name},
-		fields=["name", "job_application", "job_applicant", "status", "total_score", "is_fully_graded", "is_pass"],
+		fields=[
+			"name",
+			"job_application",
+			"job_applicant",
+			"status",
+			"total_score",
+			"is_fully_graded",
+			"is_pass",
+			"attendance_response",
+		],
 		order_by="creation asc",
 	)
 	if not attempts:
@@ -309,6 +336,7 @@ def get_exam_queue(job_opening):
 				"is_fully_graded": attempt.is_fully_graded,
 				"is_pass": attempt.is_pass,
 				"has_pending_grading": attempt.status == "Submitted" and attempt.name in pending_attempts,
+				"attendance_response": attempt.attendance_response,
 			}
 		)
 
@@ -335,7 +363,16 @@ def get_attempt_detail(attempt):
 		for row in frappe.get_all(
 			"Exam Attempt Answer",
 			filters={"parent": attempt},
-			fields=["name", "question", "selected_option", "short_answer_text", "score_given", "is_graded", "is_correct"],
+			fields=[
+				"name",
+				"question",
+				"selected_option",
+				"short_answer_text",
+				"score_given",
+				"is_graded",
+				"is_correct",
+				"evaluator_comment",
+			],
 		)
 	}
 
@@ -354,6 +391,7 @@ def get_attempt_detail(attempt):
 				"score_given": answer.score_given if answer else None,
 				"is_graded": bool(answer.is_graded) if answer else False,
 				"is_correct": bool(answer.is_correct) if answer else False,
+				"evaluator_comment": answer.evaluator_comment if answer else None,
 			}
 		)
 
@@ -366,38 +404,46 @@ def close_and_mark_absent(exam):
 
 	exam_doc = frappe.get_doc("Exam", exam)
 	if now_datetime() < exam_doc.closes_on:
-		gdl_error("The exam window hasn't closed yet.")
+		gdl_error("The test window hasn't closed yet.")
 
 	attempts = frappe.get_all(
 		"Exam Attempt", filters={"exam": exam, "status": ["in", ["Invited", "In Progress"]]}, fields=["name", "job_application"]
 	)
 	for attempt in attempts:
 		frappe.db.set_value("Exam Attempt", attempt.name, "status", "Not Attended")
-		frappe.db.set_value("Job Application", attempt.job_application, "status", "Exam Not Attended")
+		set_application_status(attempt.job_application, "Exam Not Attended")
 
 	return success(data={"marked_absent": len(attempts)}, message=f"{len(attempts)} candidate(s) marked not attended.")
 
 
 @frappe.whitelist(methods=["POST"])
-def grade_answers(attempt, scores):
+def grade_answers(attempt, scores, evaluator_comment=None):
 	require_hr()
 
 	if isinstance(scores, str):
 		scores = frappe.parse_json(scores)
-	if not scores:
+	if not scores and evaluator_comment is None:
 		gdl_error("Enter at least one score before saving.")
 
 	attempt_doc = frappe.get_doc("Exam Attempt", attempt)
 	question_marks = {q.name: q.marks for q in frappe.get_all("Exam Question", filters={"exam": attempt_doc.exam}, fields=["name", "marks"])}
 
-	for answer_name, score in scores.items():
+	# scores: {answer_name: {"score": N, "comment": "..."}} - comment is optional
+	# per-answer (only meaningful for Short Answer questions), score is required.
+	for answer_name, entry in scores.items():
+		entry = entry if isinstance(entry, dict) else {"score": entry}
 		answer = frappe.get_doc("Exam Attempt Answer", answer_name)
 		if answer.parent != attempt:
 			continue
 		max_score = question_marks.get(answer.question, 0)
-		clamped = max(0, min(frappe.utils.flt(score), max_score))
+		clamped = max(0, min(frappe.utils.flt(entry.get("score")), max_score))
 		answer.db_set("score_given", clamped)
 		answer.db_set("is_graded", 1)
+		if "comment" in entry:
+			answer.db_set("evaluator_comment", entry.get("comment"))
+
+	if evaluator_comment is not None:
+		attempt_doc.db_set("evaluator_comment", evaluator_comment)
 
 	finalize_attempt_grading(attempt_doc)
 	attempt_doc.reload()
@@ -416,7 +462,7 @@ def advance_from_exam(job_opening, cutoff):
 		"Job Application", filters={"job_opening": job_opening, "status": "Exam Completed"}, fields=["name"]
 	)
 	if not completed:
-		gdl_error("No completed exam candidates to advance.")
+		gdl_error("No completed test candidates to advance.")
 
 	scores = {
 		row.job_application: row.total_score or 0
@@ -430,7 +476,7 @@ def advance_from_exam(job_opening, cutoff):
 	advancing = ranked[:cutoff]
 
 	for app in advancing:
-		frappe.db.set_value("Job Application", app.name, "status", "Interview Invited / Scheduled")
+		set_application_status(app.name, "Interview Invited / Scheduled")
 
 	return success(
 		data={"advanced": len(advancing)},

@@ -1,0 +1,74 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 0,
+ "creation": "2026-08-29 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "interview_session",
+  "unlocked_by",
+  "unlocked_on",
+  "reason"
+ ],
+ "fields": [
+  {
+   "fieldname": "interview_session",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Interview Session",
+   "options": "Interview Session",
+   "reqd": 1
+  },
+  {
+   "fieldname": "unlocked_by",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Unlocked By",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "unlocked_on",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Unlocked On",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "reqd": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-29 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gdl",
+ "name": "Interview Unlock Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

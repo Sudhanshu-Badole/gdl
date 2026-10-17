@@ -1,0 +1,109 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "INTS-.YYYY.-.####",
+ "creation": "2026-08-29 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "interview",
+  "job_application",
+  "job_applicant",
+  "status",
+  "scheduled_on",
+  "attendance_response",
+  "attendance_responded_on",
+  "total_score"
+ ],
+ "fields": [
+  {
+   "fieldname": "interview",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Interview",
+   "options": "Interview Schedule",
+   "reqd": 1
+  },
+  {
+   "fieldname": "job_application",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Application",
+   "options": "Job Application",
+   "reqd": 1
+  },
+  {
+   "fieldname": "job_applicant",
+   "fieldtype": "Link",
+   "label": "Applicant",
+   "options": "Job Applicant",
+   "reqd": 1
+  },
+  {
+   "default": "Invited",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Invited\nCompleted\nNot Attended",
+   "reqd": 1
+  },
+  {
+   "description": "This candidate's own interview time - falls back to the Interview Schedule's shared scheduled_on when unset.",
+   "fieldname": "scheduled_on",
+   "fieldtype": "Datetime",
+   "label": "Scheduled On"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "attendance_response",
+   "fieldtype": "Select",
+   "label": "Attendance Response",
+   "options": "Pending\nConfirmed\nDeclined"
+  },
+  {
+   "fieldname": "attendance_responded_on",
+   "fieldtype": "Datetime",
+   "label": "Responded On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_score",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Total Score",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-29 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gdl",
+ "name": "Interview Session",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

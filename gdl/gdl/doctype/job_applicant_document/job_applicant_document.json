@@ -8,7 +8,11 @@
  "engine": "InnoDB",
  "field_order": [
   "document_type",
-  "attachment"
+  "attachment",
+  "status",
+  "remark",
+  "reviewed_by",
+  "reviewed_on"
  ],
  "fields": [
   {
@@ -24,6 +28,33 @@
    "in_list_view": 1,
    "label": "Attachment",
    "reqd": 1
+  },
+  {
+   "default": "Submitted",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Submitted\nSent Back\nVerified"
+  },
+  {
+   "depends_on": "eval:doc.status == 'Sent Back'",
+   "fieldname": "remark",
+   "fieldtype": "Small Text",
+   "label": "HR Remark"
+  },
+  {
+   "fieldname": "reviewed_by",
+   "fieldtype": "Link",
+   "label": "Reviewed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reviewed_on",
+   "fieldtype": "Datetime",
+   "label": "Reviewed On",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,

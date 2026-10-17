@@ -1,7 +1,11 @@
 <template>
 	<div id="documents-section" class="rounded-xl border border-gray-200 p-6">
 		<h2 class="font-semibold text-ink">Documents</h2>
-		<p class="mt-1 text-sm text-body">Upload your CV and any other supporting files. CID and certificates are uploaded in Personal and Education sections.</p>
+		<p class="mt-1 text-sm text-body">
+			Upload your CV and any other supporting files. Your CID, Medical Certificate, and Security Clearance are
+			uploaded above; your Academic Certificate and Experience Letter are uploaded in the Education and Work
+			experience sections below.
+		</p>
 
 		<p v-if="!applicant.resume_attachment" class="mt-4 rounded-md bg-amber-50 px-4 py-2 text-sm text-amber-800">
 			Upload your <strong>CV / Résumé</strong> to apply.
@@ -32,7 +36,12 @@
 		<div v-else class="mb-4 space-y-2">
 			<div v-for="row in applicant.gdl_other_documents" :key="row.name" class="flex items-center justify-between border-b border-gray-100 pb-2">
 				<a :href="row.attachment" target="_blank" class="text-sm font-medium text-brand-700 hover:underline">{{ row.document_type }}</a>
-				<button type="button" class="text-xs font-medium text-red-600 hover:underline" @click="removeOther(row.name)">Delete</button>
+				<div class="flex items-center gap-3">
+					<span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="otherStatusClass(row.status)">
+						{{ row.status || "Submitted" }}
+					</span>
+					<button type="button" class="text-xs font-medium text-red-600 hover:underline" @click="removeOther(row.name)">Delete</button>
+				</div>
 			</div>
 		</div>
 
@@ -76,18 +85,6 @@ const OTHER_TYPE_PRESETS = ["Cover Letter", "Reference Letter", "Certificate", "
 
 const fixedDocs = [
 	{ label: "Curriculum Vitae (CV)", field: "resume_attachment", method: "gdl.api.applicant.upload_cv", required: true },
-	{
-		label: "Academic Certificate",
-		field: "gdl_academic_certificate",
-		method: "gdl.api.applicant.upload_academic_certificate",
-		required: true,
-	},
-	{
-		label: "Experience Letter (optional)",
-		field: "gdl_experience_letter",
-		method: "gdl.api.applicant.upload_experience_letter",
-		required: false,
-	},
 ];
 
 const fixedError = ref("");
@@ -136,6 +133,16 @@ async function addOther() {
 	} finally {
 		addingOther.value = false;
 	}
+}
+
+function otherStatusClass(status) {
+	return (
+		{
+			Verified: "bg-green-100 text-green-700",
+			"Sent Back": "bg-red-100 text-red-700",
+			Submitted: "bg-brand-100 text-brand-700",
+		}[status] || "bg-gray-100 text-body"
+	);
 }
 
 async function removeOther(rowName) {

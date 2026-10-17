@@ -11,7 +11,8 @@
   "institution_name",
   "start_date",
   "completion_date",
-  "grade_or_result"
+  "grade_or_result",
+  "score_percent"
  ],
  "fields": [
   {
@@ -45,6 +46,13 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Grade or Result"
+  },
+  {
+   "description": "Standardized percentage for this qualification - used to check a vacancy's minimum degree score requirement. Enter your grading scheme's equivalent percentage.",
+   "fieldname": "score_percent",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Score (%)"
   }
  ],
  "grid_page_length": 50,

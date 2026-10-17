@@ -85,7 +85,7 @@
 				<span class="text-sm font-medium text-ink">Advance top</span>
 				<input v-model.number="cutoff" type="number" min="1" class="w-20 rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
 				<span class="text-sm text-body">shortlisted candidate(s) by score to</span>
-				<span class="text-sm font-medium text-ink">{{ data.exam_required ? "Exam" : "Interview" }}</span>
+				<span class="text-sm font-medium text-ink">{{ data.exam_required ? "Test" : "Interview" }}</span>
 				<button
 					type="button"
 					:disabled="advancing"

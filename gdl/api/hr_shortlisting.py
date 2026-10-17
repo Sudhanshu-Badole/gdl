@@ -9,6 +9,7 @@ import frappe
 
 from gdl.api.hr import require_hr
 from gdl.api.response import success
+from gdl.utils.audit import set_application_status
 from gdl.utils.exceptions import gdl_error
 
 # Applications an HR user should see in the Shortlist tab: still awaiting a
@@ -36,7 +37,8 @@ def get_shortlisting_queue(job_opening):
 		template = {
 			"name": template_doc.name,
 			"criteria": [
-				{"criterion_label": c.criterion_label, "max_score": c.max_score} for c in template_doc.criteria
+				{"criterion_label": c.criterion_label, "description": c.description, "max_score": c.max_score}
+				for c in template_doc.criteria
 			],
 		}
 
@@ -136,7 +138,7 @@ def save_shortlisting_score(job_application, criterion_scores):
 	score_doc.save()
 
 	if application.status == "Submitted":
-		application.db_set("status", "Under Review")
+		set_application_status(application.name, "Under Review")
 
 	return success(data={"total_score": score_doc.total_score}, message="Score saved.")
 
@@ -166,7 +168,7 @@ def bulk_set_shortlist_status(job_applications, status):
 		gdl_error("None of the selected applications can still be revised at this stage.")
 
 	for name in job_applications:
-		frappe.db.set_value("Job Application", name, "status", status)
+		set_application_status(name, status)
 
 	message = f"{len(job_applications)} application(s) marked {status}."
 	if skipped:
@@ -202,7 +204,7 @@ def advance_shortlisted(job_opening, cutoff):
 	advancing = ranked[:cutoff]
 
 	for app in advancing:
-		frappe.db.set_value("Job Application", app.name, "status", next_status)
+		set_application_status(app.name, next_status)
 
 	return success(
 		data={"advanced": len(advancing), "next_status": next_status},

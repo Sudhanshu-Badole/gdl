@@ -1,9 +1,10 @@
 <template>
-	<span class="rounded-full px-3 py-1 text-xs font-semibold" :class="colorClass">{{ status }}</span>
+	<span class="rounded-full px-3 py-1 text-xs font-semibold" :class="colorClass">{{ displayStatus(status) }}</span>
 </template>
 
 <script setup>
 import { computed } from "vue";
+import { displayStatus } from "../../utils/statusLabels.js";
 
 const props = defineProps({
 	status: { type: String, required: true },
@@ -14,6 +15,7 @@ const RED_STATUSES = [
 	"Not Shortlisted",
 	"Rejected",
 	"Offer Declined",
+	"Offer Expired",
 	"Exam Not Attended",
 	"Interview Not Attended",
 ];

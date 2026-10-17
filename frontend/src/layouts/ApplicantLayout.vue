@@ -32,7 +32,8 @@
 		</aside>
 
 		<div class="flex flex-1 flex-col">
-			<header class="flex items-center justify-end border-b border-gray-200 px-6 py-4">
+			<header class="flex items-center justify-end gap-2 border-b border-gray-200 px-6 py-4">
+				<NotificationBell />
 				<UserMenu :display-name="boot.full_name || boot.user" :email="boot.user" role-label="Applicant" />
 			</header>
 			<main class="flex-1 bg-white px-8 py-8">
@@ -50,6 +51,7 @@ import UsersIcon from "../components/icons/UsersIcon.vue";
 import BriefcaseIcon from "../components/icons/BriefcaseIcon.vue";
 import GraduationCapIcon from "../components/icons/GraduationCapIcon.vue";
 import UserMenu from "../components/shared/UserMenu.vue";
+import NotificationBell from "../components/shared/NotificationBell.vue";
 
 const route = useRoute();
 const boot = window.boot || {};

@@ -24,7 +24,8 @@
 		</aside>
 
 		<div class="flex flex-1 flex-col">
-			<header class="flex items-center justify-end border-b border-gray-200 px-6 py-4">
+			<header class="flex items-center justify-end gap-2 border-b border-gray-200 px-6 py-4">
+				<NotificationBell />
 				<UserMenu :display-name="boot.full_name || boot.user" :email="boot.user" role-label="HR" />
 			</header>
 			<main class="flex-1 bg-white px-8 py-8">
@@ -41,8 +42,10 @@ import BriefcaseIcon from "../components/icons/BriefcaseIcon.vue";
 import UsersIcon from "../components/icons/UsersIcon.vue";
 import LetterIcon from "../components/icons/LetterIcon.vue";
 import ClipboardIcon from "../components/icons/ClipboardIcon.vue";
+import DocCheckIcon from "../components/icons/DocCheckIcon.vue";
 import SettingsIcon from "../components/icons/SettingsIcon.vue";
 import UserMenu from "../components/shared/UserMenu.vue";
+import NotificationBell from "../components/shared/NotificationBell.vue";
 
 const route = useRoute();
 const boot = window.boot || {};
@@ -51,6 +54,7 @@ const navItems = [
 	{ label: "Dashboard", to: "/HR/Dashboard", icon: DashboardIcon },
 	{ label: "Vacancies", to: "/HR/Vacancies", icon: BriefcaseIcon },
 	{ label: "Candidates", to: "/HR/Candidates", icon: UsersIcon },
+	{ label: "Question bank", to: "/HR/Question-bank", icon: DocCheckIcon },
 	{ label: "Letters", to: "/HR/Letters", icon: LetterIcon },
 	{ label: "Audit log", to: "/HR/Audit-log", icon: ClipboardIcon },
 	{ label: "Settings", to: "/HR/Settings", icon: SettingsIcon },

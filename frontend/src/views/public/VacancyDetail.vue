@@ -29,16 +29,6 @@
 			</div>
 		</div>
 
-		<a
-			v-if="opening.gdl_terms_of_reference"
-			:href="opening.gdl_terms_of_reference"
-			target="_blank"
-			class="mt-4 flex items-center gap-2 rounded-md bg-gray-50 px-4 py-3 text-sm font-medium text-brand-700 hover:bg-gray-100"
-		>
-			<DocCheckIcon class="h-4 w-4 shrink-0" />
-			Terms of Reference ({{ opening.gdl_terms_of_reference_filename }})
-		</a>
-
 		<div v-if="showCriteria" class="mt-6 rounded-xl border border-gray-200 p-6">
 			<h2 class="font-semibold text-ink">Application criteria</h2>
 			<p class="mt-1 text-sm text-body">You must meet these requirements to apply. Your profile marks and experience are checked automatically.</p>

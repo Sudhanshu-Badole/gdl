@@ -2,19 +2,24 @@
 
 Every function starts with require_hr() - the SPA's router guard is UX only
 (reads window.boot.roles), this is the real server-side gate. A few
-dashboard stats are still literal 0 by design, not fake queries: Interview,
-Job Offer, and Appointment Letter doctypes don't exist yet (Phases 7-8 of the
-project plan haven't started), so there's nothing real to count for those
-widgets until then. Examination stats are wired to gdl.api.hr_exam's
-doctypes (Phase 6).
+dashboard stats are still literal 0 by design, not fake queries: Job Offer
+and Appointment Letter doctypes don't exist yet (Phase 8 of the project plan
+hasn't started), so there's nothing real to count for those widgets until
+then. Examination stats are wired to gdl.api.hr_exam's doctypes (Phase 6);
+Interview stats to gdl.api.hr_interview's (Phase 7).
 """
 
 import frappe
-from frappe.utils import add_days, get_first_day, get_first_day_of_week, today
+from frappe.utils import add_days, escape_html, get_first_day, get_first_day_of_week, get_url, today
 
 from gdl.api.response import success
+from gdl.utils.audit import log_action
+from gdl.utils.documents import DOCUMENT_KEYS, set_verification_status
 from gdl.utils.exceptions import gdl_error
+from gdl.utils.notifications import notify_user, send_email_or_log
 from gdl.utils.vacancies import FILLED_STATUSES
+
+DOCUMENT_VERIFICATION_STATUSES = {"Verified", "Sent Back"}
 
 HR_ROLES = ("HR Officer", "System Manager")
 HR_CLOSING_SOON_WINDOW_DAYS = 3
@@ -28,8 +33,8 @@ PIPELINE_BUCKETS = {
 	"shortlisted": {"Shortlisted"},
 	"exam_stage": {"Exam Invited / Scheduled", "Exam Completed", "Exam Not Attended"},
 	"interview_stage": {"Interview Invited / Scheduled", "Interview Completed", "Interview Not Attended"},
-	"selected": {"Selected"},
-	"offer_appointed": {"Offer Sent", "Offer Accepted", "Offer Declined", "Appointed"},
+	"selected": {"Selected", "Reserve", "Rejected"},
+	"offer_appointed": {"Offer Sent", "Offer Accepted", "Offer Declined", "Offer Expired", "Appointed"},
 }
 
 
@@ -122,20 +127,29 @@ def get_dashboard_stats():
 		else 0
 	)
 
+	upcoming_interviews_14d = frappe.db.count(
+		"Interview Schedule", {"status": "Published", "scheduled_on": ["between", [today(), add_days(today(), 14)]]}
+	)
+
+	draft_interview_names = frappe.get_all("Interview Schedule", {"status": "Draft"}, pluck="name")
+	ready_to_publish_interview = (
+		len(set(frappe.get_all("Interview Criterion", filters={"interview": ["in", draft_interview_names]}, pluck="interview")))
+		if draft_interview_names
+		else 0
+	)
+
 	return success(
 		data={
 			"overview": {
 				"open_vacancies": open_vacancies,
 				"applications_this_week": applications_this_week,
 				"upcoming_exams_14d": upcoming_exams_14d,
-				# Placeholder - no Interview doctype yet (Phase 7).
-				"upcoming_interviews_14d": 0,
+				"upcoming_interviews_14d": upcoming_interviews_14d,
 			},
 			"needs_action": {
 				"pending_document_review": pending_document_review,
 				"ready_to_publish_exam": ready_to_publish_exam,
-				# Placeholder - no Interview doctype yet (Phase 7).
-				"ready_to_publish_interview": 0,
+				"ready_to_publish_interview": ready_to_publish_interview,
 				"exam_grades_pending": exam_grades_pending,
 				# Placeholder - no Job Offer equivalent yet (Phase 8).
 				"offers_awaiting_response": 0,
@@ -164,6 +178,7 @@ def list_vacancies():
 			"department",
 			"status",
 			"publish",
+			"posted_on",
 			"closes_on",
 			"gdl_number_of_positions",
 		],
@@ -182,6 +197,7 @@ def list_vacancies():
 				"applications_count": applications_count,
 				"positions_filled": positions_filled,
 				"positions_total": opening.gdl_number_of_positions or 0,
+				"posted_on": opening.posted_on,
 				"closes_on": opening.closes_on,
 				"computed_status": _computed_status(opening, positions_filled),
 			}
@@ -261,6 +277,7 @@ def get_vacancy_applications(job_opening):
 		data=[
 			{
 				"name": a.name,
+				"job_applicant": a.job_applicant,
 				"applicant_name": applicants.get(a.job_applicant, {}).get("applicant_name"),
 				"email_id": applicants.get(a.job_applicant, {}).get("email_id"),
 				"status": a.status,
@@ -269,6 +286,152 @@ def get_vacancy_applications(job_opening):
 			for a in applications
 		]
 	)
+
+
+@frappe.whitelist()
+def get_applicant_documents(job_applicant):
+	"""Every fixed document + its verification status, plus the free-form
+	"Other Supporting Documents" rows - backs both the Applications tab's
+	per-row expand panel and the Candidates "Verification" tab."""
+	require_hr()
+
+	doc = frappe.get_doc("Job Applicant", job_applicant)
+	rows = []
+	for key, (fieldname, label, mandatory) in DOCUMENT_KEYS.items():
+		file_url = doc.get(fieldname)
+		verification = next(
+			(r for r in doc.custom_document_verifications if r.document_key == key), None
+		)
+		rows.append(
+			{
+				"key": key,
+				"label": label,
+				"mandatory": mandatory,
+				"file_url": file_url,
+				"status": verification.status if verification else "Submitted",
+				"remark": verification.remark if verification else None,
+				"reviewed_by": verification.reviewed_by if verification else None,
+				"reviewed_on": verification.reviewed_on if verification else None,
+			}
+		)
+
+	other = [
+		{
+			"key": row.name,
+			"label": row.document_type,
+			"mandatory": False,
+			"file_url": row.attachment,
+			"status": row.status or "Submitted",
+			"remark": row.remark,
+			"reviewed_by": row.reviewed_by,
+			"reviewed_on": row.reviewed_on,
+		}
+		for row in doc.gdl_other_documents
+	]
+	return success(data={"applicant_name": doc.applicant_name, "documents": rows, "other_documents": other})
+
+
+@frappe.whitelist(methods=["POST"])
+def set_document_verification_status(job_applicant, document_key, status, remark=None):
+	"""HR Verify/Send Back action on one document. document_key is either a
+	fixed key from gdl.utils.documents.DOCUMENT_KEYS, or the row name of an
+	"Other Supporting Documents" entry (see the "other" branch below)."""
+	require_hr()
+
+	if status not in DOCUMENT_VERIFICATION_STATUSES:
+		gdl_error("Status must be Verified or Sent Back.")
+	if status == "Sent Back" and not (remark or "").strip():
+		gdl_error("A remark is required when sending a document back.")
+
+	doc = frappe.get_doc("Job Applicant", job_applicant)
+
+	if document_key in DOCUMENT_KEYS:
+		fieldname = DOCUMENT_KEYS[document_key][0]
+		if not doc.get(fieldname):
+			gdl_error("This document hasn't been uploaded yet.")
+		set_verification_status(doc, document_key, status, remark=remark, reviewed_by=frappe.session.user)
+	else:
+		row = next((r for r in doc.gdl_other_documents if r.name == document_key), None)
+		if not row:
+			gdl_error("Document not found.")
+		row.status = status
+		row.remark = remark
+		row.reviewed_by = frappe.session.user
+		row.reviewed_on = frappe.utils.now_datetime()
+		doc.save()
+
+	log_action(
+		action=f"Document {status}",
+		reference_doctype="Job Applicant",
+		reference_name=job_applicant,
+		new_value=status,
+		details=f"{document_key}: {remark}" if remark else document_key,
+	)
+
+	if status == "Sent Back":
+		link = "/complete-profile"
+		message = f"""
+			<p>Hi {escape_html(doc.applicant_name)},</p>
+			<p>One of your submitted documents needs attention: <strong>{escape_html(remark)}</strong></p>
+			<p>Please update it here: <a href="{get_url(link)}">{get_url(link)}</a></p>
+		"""
+		send_email_or_log(
+			recipients=[doc.email_id],
+			subject="A document needs your attention",
+			message=message,
+			log_fallback=f"document sent back for {doc.email_id} ({document_key})",
+		)
+		notify_user(
+			doc.email_id,
+			subject=f"Document sent back: {remark}",
+			document_type="Job Applicant",
+			document_name=doc.name,
+			link=link,
+		)
+
+	return success(message=f"Document marked {status}.")
+
+
+@frappe.whitelist()
+def list_pending_document_verifications():
+	"""Applicants with at least one uploaded document still awaiting HR
+	review (status Submitted, or no verification row yet) - backs the
+	Candidates "Verification" tab."""
+	require_hr()
+
+	fixed_fieldnames = [fieldname for fieldname, _label, _mandatory in DOCUMENT_KEYS.values()]
+	applicants = frappe.get_all("Job Applicant", fields=["name", *fixed_fieldnames])
+
+	resolved_by_parent = {}
+	for row in frappe.get_all(
+		"Job Applicant Document Verification",
+		filters={"status": ["!=", "Submitted"]},
+		fields=["parent", "document_key"],
+	):
+		resolved_by_parent.setdefault(row.parent, set()).add(row.document_key)
+
+	pending_names = {
+		applicant.name
+		for applicant in applicants
+		if any(
+			applicant.get(fieldname) and key not in resolved_by_parent.get(applicant.name, set())
+			for key, (fieldname, _label, _mandatory) in DOCUMENT_KEYS.items()
+		)
+	}
+	pending_names.update(
+		frappe.get_all("Job Applicant Document", filters={"status": "Submitted"}, pluck="parent")
+	)
+
+	if not pending_names:
+		return success(data=[])
+
+	rows = frappe.get_all(
+		"Job Applicant",
+		filters={"name": ["in", list(pending_names)]},
+		fields=["name", "applicant_name", "email_id", "gdl_cid_number", "creation"],
+		order_by="creation desc",
+	)
+	return success(data=rows)
 
 
 @frappe.whitelist()

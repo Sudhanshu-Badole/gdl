@@ -11,7 +11,7 @@
   "staffing_details": [
    {
     "current_count": 0,
-    "current_openings": 0,
+    "current_openings": 1,
     "designation": "Analyst",
     "estimated_cost_per_position": 0.0,
     "number_of_positions": 5,

@@ -2,7 +2,7 @@
  {
   "docstatus": 0,
   "doctype": "Role Profile",
-  "modified": "2026-08-28 14:31:26.563546",
+  "modified": "2026-09-29 23:23:46.654370",
   "name": "HR Officer",
   "role_profile": "HR Officer",
   "roles": [
@@ -14,7 +14,7 @@
  {
   "docstatus": 0,
   "doctype": "Role Profile",
-  "modified": "2026-08-28 14:31:26.685617",
+  "modified": "2026-09-29 23:23:46.969507",
   "name": "Panel Member",
   "role_profile": "Panel Member",
   "roles": [
@@ -26,7 +26,7 @@
  {
   "docstatus": 0,
   "doctype": "Role Profile",
-  "modified": "2026-08-28 14:31:26.704890",
+  "modified": "2026-09-29 23:23:46.986378",
   "name": "Super Admin",
   "role_profile": "Super Admin",
   "roles": [

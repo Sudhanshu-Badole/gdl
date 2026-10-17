@@ -5,15 +5,28 @@
 		</div>
 
 		<template v-else>
-			<p v-if="!shortAnswerRows.length" class="text-sm text-body">No Short Answer questions to grade for this attempt.</p>
+			<div v-if="violations.length" class="mb-3">
+				<button
+					type="button"
+					class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+					@click="showViolations = !showViolations"
+				>
+					{{ violations.length }} lockdown violation{{ violations.length === 1 ? "" : "s" }}
+				</button>
+				<ul v-if="showViolations" class="mt-2 space-y-1 text-xs text-body">
+					<li v-for="(v, i) in violations" :key="i">{{ v.event_type }} · {{ v.occurred_on }}</li>
+				</ul>
+			</div>
 
-			<form v-else class="space-y-4" @submit.prevent="save">
+			<form class="space-y-4" @submit.prevent="save">
+				<p v-if="!shortAnswerRows.length" class="text-sm text-body">No Short Answer questions to grade for this attempt.</p>
+
 				<div v-for="row in shortAnswerRows" :key="row.question" class="rounded-md border border-gray-200 bg-white p-3">
 					<p class="text-sm font-medium text-ink">{{ row.question_text }}</p>
 					<p class="mt-1 whitespace-pre-wrap text-sm text-body">{{ row.short_answer_text || "(no answer given)" }}</p>
 					<div class="mt-2 flex items-center gap-2">
 						<input
-							v-model.number="scores[row.answer_name]"
+							v-model.number="scores[row.answer_name].score"
 							type="number"
 							min="0"
 							:max="row.marks"
@@ -21,6 +34,22 @@
 						/>
 						<span class="text-xs text-body">/ {{ row.marks }}</span>
 					</div>
+					<textarea
+						v-model="scores[row.answer_name].comment"
+						rows="2"
+						placeholder="Comment on this answer (optional, visible to interview panel)"
+						class="mt-2 w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm"
+					></textarea>
+				</div>
+
+				<div>
+					<label class="mb-1 block text-sm font-medium text-ink">Overall comment</label>
+					<textarea
+						v-model="evaluatorComment"
+						rows="2"
+						placeholder="Overall remark on this attempt (optional, visible to interview panel)"
+						class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm"
+					></textarea>
 				</div>
 
 				<p v-if="error" class="text-sm text-red-600">{{ error }}</p>
@@ -54,6 +83,9 @@ const emit = defineEmits(["saved", "cancel"]);
 const loaded = ref(false);
 const questions = ref([]);
 const scores = ref({});
+const evaluatorComment = ref("");
+const violations = ref([]);
+const showViolations = ref(false);
 const saving = ref(false);
 const error = ref("");
 
@@ -63,8 +95,10 @@ onMounted(async () => {
 	try {
 		const res = await call("gdl.api.hr_exam.get_attempt_detail", { attempt: props.attempt });
 		questions.value = res?.data?.questions || [];
+		evaluatorComment.value = res?.data?.attempt?.evaluator_comment || "";
+		violations.value = res?.data?.attempt?.violations || [];
 		for (const row of shortAnswerRows.value) {
-			scores.value[row.answer_name] = row.score_given ?? 0;
+			scores.value[row.answer_name] = { score: row.score_given ?? 0, comment: row.evaluator_comment || "" };
 		}
 	} finally {
 		loaded.value = true;
@@ -75,7 +109,11 @@ async function save() {
 	saving.value = true;
 	error.value = "";
 	try {
-		const res = await call("gdl.api.hr_exam.grade_answers", { attempt: props.attempt, scores: scores.value });
+		const res = await call("gdl.api.hr_exam.grade_answers", {
+			attempt: props.attempt,
+			scores: scores.value,
+			evaluator_comment: evaluatorComment.value,
+		});
 		if (res.success) {
 			emit("saved");
 		} else {

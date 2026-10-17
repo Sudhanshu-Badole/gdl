@@ -97,12 +97,16 @@ fixtures = [
 		"dt": "Custom Field",
 		"or_filters": [["fieldname", "like", "gdl_%"], ["fieldname", "like", "custom_%"]],
 	},
-	# Job Opening's VAC-.YYYY.-.#### naming series (Customize Form -> Autoname)
-	{"dt": "Property Setter", "filters": [["doc_type", "=", "Job Opening"], ["property", "=", "autoname"]]},
+	# Job Opening customizations made via Customize Form: the VAC-.YYYY.-.####
+	# naming series (property=autoname), plus label relabels (Department ->
+	# Office, posted_on -> Open Date - client feedback, Phase 1).
+	{"dt": "Property Setter", "filters": [["doc_type", "in", ["Job Opening", "Job Offer"]]]},
 	# Standard HRMS master data that isn't guaranteed to exist on every site
 	# (see gdl/setup_master_data.py - this bit a real user when it was missing)
 	{"dt": "Job Applicant Source"},
 	{"dt": "Employment Type"},
+	# Phase 10 - the 5 recruitment Query Reports (see gdl.setup_reports).
+	{"dt": "Report", "filters": [["module", "=", "Gdl"]]},
 ]
 
 # Generators
@@ -113,11 +117,15 @@ fixtures = [
 
 # custom portal URL rules (e.g. /HR/*, /panel/*) — populated as Phase 2/3+ pages are added
 website_route_rules = [
-	# {"from_route": "/panel/<path:app_path>", "to_route": "panel"},
 	# HR portal (role-gated /HR/* routes inside the same Vue SPA as the public
 	# site, not a separate app - <path:app_path> greedily matches every HR
 	# sub-path, e.g. /HR/Dashboard, /HR/Vacancies, /HR/Vacancies/<name>).
 	{"from_route": "/HR/<path:app_path>", "to_route": "frontend"},
+	# Panel Member portal (Phase 7) - same pattern as /HR/* above, replaces
+	# the bare Jinja stub at gdl/www/panel/dashboard.* (now deleted).
+	# gdl.auth.get_home_page still redirects Panel Member logins to the
+	# lowercase "panel/dashboard" path, hence the lowercase route here.
+	{"from_route": "/panel/<path:app_path>", "to_route": "frontend"},
 	# Applicant portal (ported from gdl/www/{dashboard,applications,
 	# complete-profile}.* into the same Vue SPA - role-gated client-side by
 	# the Applicant Portal User guard in frontend/src/router/index.js, same
@@ -241,16 +249,21 @@ doc_events = {
 		# sibling applications, so it must run after this save is persisted.
 		"on_update": "gdl.utils.vacancies.auto_close_job_opening_if_filled",
 	},
+    "Purchase Order": {
+		"validate": "gdl.gdl.custom_scripts.purchase_order.purchase_order.validate"
+	}
 }
 
 # Scheduled Tasks
 # ---------------
-# populated in Phase 10 for reminder notifications (24h-before exam/interview jobs)
+# expire_stale_offers: client feedback (Phase 3) - flips a Job Offer past its
+# response deadline to "Expired". Reminder notifications (24h-before
+# exam/interview jobs) remain a Phase 10 TODO.
 
 scheduler_events = {
-	# "daily": [
-	# 	"gdl.gdl.tasks.send_reminder_notifications",
-	# ],
+	"daily": [
+		"gdl.tasks.expire_stale_offers",
+	],
 }
 
 # Testing

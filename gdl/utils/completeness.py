@@ -11,6 +11,8 @@ Wired via the Job Applicant "validate" doc_event (hooks.py) - runs as part
 of every save, not a separate write, so there's no double-save/hook-loop risk.
 """
 
+from gdl.utils.documents import DOCUMENT_KEYS
+
 PERSONAL_INFO_FIELDS = [
 	"gdl_date_of_birth",
 	"gdl_gender",
@@ -19,7 +21,10 @@ PERSONAL_INFO_FIELDS = [
 	"gdl_current_address",
 	"gdl_profile_photo",
 ]
-MANDATORY_DOCUMENT_FIELDS = ["resume_attachment", "gdl_national_id", "gdl_academic_certificate"]
+# Derived from the shared registry so a new mandatory document (e.g. client
+# feedback's Medical Certificate/Security Clearance) automatically counts
+# here too, instead of needing this list updated separately.
+MANDATORY_DOCUMENT_FIELDS = [fieldname for fieldname, _label, mandatory in DOCUMENT_KEYS.values() if mandatory]
 
 PERSONAL_INFO_WEIGHT = 30
 EDUCATION_WEIGHT = 20

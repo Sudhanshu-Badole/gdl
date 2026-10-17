@@ -8,6 +8,7 @@
  "engine": "InnoDB",
  "field_order": [
   "criterion_label",
+  "description",
   "max_score"
  ],
  "fields": [
@@ -17,6 +18,11 @@
    "in_list_view": 1,
    "label": "Criterion",
    "reqd": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text",
+   "label": "Description"
   },
   {
    "fieldname": "max_score",

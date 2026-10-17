@@ -11,9 +11,10 @@
 				</p>
 				<div class="mt-2 flex flex-wrap items-center gap-3 text-sm">
 					<span class="rounded-full px-3 py-1 text-xs font-semibold" :class="statusBadgeClass(detail.computed_status)">
-						{{ detail.computed_status.toUpperCase() }}
+						{{ statusLabel(detail.computed_status).toUpperCase() }}
 					</span>
 					<span class="text-body">{{ detail.positions_filled }}/{{ detail.positions_total }} filled</span>
+					<span v-if="detail.opening.posted_on" class="text-body">Open date {{ formatDate(detail.opening.posted_on) }}</span>
 					<span v-if="detail.opening.closes_on" class="text-body">Closes {{ formatDate(detail.opening.closes_on) }}</span>
 				</div>
 				<a
@@ -108,19 +109,47 @@
 					<table class="w-full text-left text-sm">
 						<thead class="border-b border-gray-200 text-xs uppercase tracking-wide text-body">
 							<tr>
+								<th class="px-4 py-3 font-medium"></th>
 								<th class="px-4 py-3 font-medium">Applicant</th>
 								<th class="px-4 py-3 font-medium">Email</th>
 								<th class="px-4 py-3 font-medium">Status</th>
 								<th class="px-4 py-3 font-medium">Applied on</th>
+								<th class="px-4 py-3 font-medium"></th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-gray-100">
-							<tr v-for="a in applications" :key="a.name">
-								<td class="px-4 py-3 font-medium text-ink">{{ a.applicant_name }}</td>
-								<td class="px-4 py-3 text-body">{{ a.email_id }}</td>
-								<td class="px-4 py-3 text-body">{{ a.status }}</td>
-								<td class="px-4 py-3 text-body">{{ formatDate(a.creation) }}</td>
-							</tr>
+							<template v-for="a in applications" :key="a.name">
+								<tr>
+									<td class="px-4 py-3">
+										<button
+											class="text-body hover:text-ink"
+											:title="expandedApplication === a.name ? 'Collapse' : 'View documents'"
+											@click="toggleExpand(a)"
+										>
+											{{ expandedApplication === a.name ? "▾" : "▸" }}
+										</button>
+									</td>
+									<td class="px-4 py-3 font-medium text-ink">{{ a.applicant_name }}</td>
+									<td class="px-4 py-3 text-body">{{ a.email_id }}</td>
+									<td class="px-4 py-3 text-body">{{ displayStatus(a.status) }}</td>
+									<td class="px-4 py-3 text-body">{{ formatDate(a.creation) }}</td>
+									<td class="px-4 py-3 text-right">
+										<button
+											v-if="SHORTLISTABLE_STATUSES.includes(a.status)"
+											class="rounded-md border border-brand-200 px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50 disabled:opacity-50"
+											:disabled="shortlistingInFlight === a.name"
+											@click="shortlistApplication(a)"
+										>
+											{{ shortlistingInFlight === a.name ? "Shortlisting…" : "Shortlist" }}
+										</button>
+									</td>
+								</tr>
+								<tr v-if="expandedApplication === a.name">
+									<td colspan="6" class="bg-gray-50 px-4 py-3">
+										<ApplicantDocumentsPanel :job-applicant="a.job_applicant" />
+									</td>
+								</tr>
+							</template>
 						</tbody>
 					</table>
 				</div>
@@ -128,7 +157,13 @@
 
 			<ShortlistPanel v-else-if="activeTab === 'Shortlist'" :job-opening="props.name" />
 
-			<ExamPanel v-else-if="activeTab === 'Exams'" :job-opening="props.name" />
+			<ExamPanel v-else-if="activeTab === 'Tests'" :job-opening="props.name" />
+
+			<InterviewPanel v-else-if="activeTab === 'Interviews'" :job-opening="props.name" />
+
+			<SelectionPanel v-else-if="activeTab === 'Selection'" :job-opening="props.name" />
+
+			<LettersPanel v-else-if="activeTab === 'Letters'" :job-opening="props.name" />
 
 			<ComingSoonPanel v-else :feature="activeTab" />
 		</div>
@@ -145,21 +180,26 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import call from "../../lib/call";
+import { displayStatus } from "../../utils/statusLabels.js";
 import ComingSoonPanel from "../../components/hr/ComingSoonPanel.vue";
 import ShortlistPanel from "../../components/hr/ShortlistPanel.vue";
 import ExamPanel from "../../components/hr/ExamPanel.vue";
+import InterviewPanel from "../../components/hr/InterviewPanel.vue";
+import SelectionPanel from "../../components/hr/SelectionPanel.vue";
+import LettersPanel from "../../components/hr/LettersPanel.vue";
+import ApplicantDocumentsPanel from "../../components/hr/ApplicantDocumentsPanel.vue";
 
 const props = defineProps({
 	name: { type: String, required: true },
 });
 
-const tabs = ["Overview", "Applications", "Shortlist", "Exams", "Interviews", "Selection", "Letters"];
+const tabs = ["Overview", "Applications", "Shortlist", "Tests", "Interviews", "Selection", "Letters"];
 const activeTab = ref("Overview");
 
 const pipelineStages = [
 	{ key: "submitted_under_review", label: "Submitted / under review" },
 	{ key: "shortlisted", label: "Shortlisted" },
-	{ key: "exam_stage", label: "Exam stage" },
+	{ key: "exam_stage", label: "Test stage" },
 	{ key: "interview_stage", label: "Interview stage" },
 	{ key: "selected", label: "Selected" },
 	{ key: "offer_appointed", label: "Offer / appointed" },
@@ -173,6 +213,13 @@ const actionError = ref("");
 const applications = ref([]);
 const applicationsLoaded = ref(false);
 const applicationsError = ref("");
+const SHORTLISTABLE_STATUSES = ["Submitted", "Under Review", "Review on Hold"];
+const shortlistingInFlight = ref("");
+const expandedApplication = ref("");
+
+function toggleExpand(application) {
+	expandedApplication.value = expandedApplication.value === application.name ? "" : application.name;
+}
 
 onMounted(async () => {
 	try {
@@ -203,6 +250,21 @@ async function loadApplications() {
 	}
 }
 
+async function shortlistApplication(application) {
+	shortlistingInFlight.value = application.name;
+	try {
+		await call("gdl.api.hr_shortlisting.bulk_set_shortlist_status", {
+			job_applications: JSON.stringify([application.name]),
+			status: "Shortlisted",
+		});
+		application.status = "Shortlisted";
+	} catch (err) {
+		applicationsError.value = err.messages?.[0] || "Could not shortlist this applicant.";
+	} finally {
+		shortlistingInFlight.value = "";
+	}
+}
+
 async function closeApplications() {
 	actionError.value = "";
 	try {
@@ -229,6 +291,14 @@ function formatDate(value) {
 		month: "short",
 		year: "numeric",
 	});
+}
+
+function statusLabel(status) {
+	// Client feedback: "Vacancy Filled" should read as "Closed" - the
+	// underlying computed_status value ("Filled") stays as-is since other
+	// code (statusBadgeClass, the "Close applications" v-if above) still
+	// keys off it.
+	return status === "Filled" ? "Closed" : status;
 }
 
 function statusBadgeClass(status) {

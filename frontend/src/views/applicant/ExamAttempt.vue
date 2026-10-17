@@ -2,16 +2,16 @@
 	<div v-if="loaded && data" class="mx-auto max-w-2xl">
 		<!-- Not (or no longer) in progress -->
 		<div v-if="data.attempt.status === 'Submitted'" class="rounded-xl border border-gray-200 p-6 text-center">
-			<h1 class="text-xl font-bold text-ink">Exam already submitted</h1>
-			<p class="mt-2 text-sm text-body">You've already submitted this exam. Track its result from your applications.</p>
+			<h1 class="text-xl font-bold text-ink">Test already submitted</h1>
+			<p class="mt-2 text-sm text-body">You've already submitted this test. Track its result from your applications.</p>
 			<router-link to="/applications" class="mt-4 inline-block text-sm font-medium text-brand-700 hover:underline">
 				Go to My Applications
 			</router-link>
 		</div>
 
 		<div v-else-if="data.attempt.status === 'Not Attended'" class="rounded-xl border border-gray-200 p-6 text-center">
-			<h1 class="text-xl font-bold text-ink">Exam window closed</h1>
-			<p class="mt-2 text-sm text-body">This exam's window closed before it was submitted.</p>
+			<h1 class="text-xl font-bold text-ink">Test window closed</h1>
+			<p class="mt-2 text-sm text-body">This test's window closed before it was submitted.</p>
 			<router-link to="/applications" class="mt-4 inline-block text-sm font-medium text-brand-700 hover:underline">
 				Go to My Applications
 			</router-link>
@@ -24,7 +24,7 @@
 			<p v-if="data.exam.instructions" class="mt-4 whitespace-pre-wrap text-sm text-ink">{{ data.exam.instructions }}</p>
 			<dl class="mt-4 space-y-1 text-sm">
 				<div class="flex justify-between"><dt class="text-body">Duration</dt><dd class="text-ink">{{ data.exam.duration_minutes }} minutes</dd></div>
-				<div class="flex justify-between"><dt class="text-body">Questions</dt><dd class="text-ink">{{ data.questions.length }}</dd></div>
+				<div class="flex justify-between"><dt class="text-body">Questions</dt><dd class="text-ink">{{ data.question_count }}</dd></div>
 				<div class="flex justify-between"><dt class="text-body">Closes</dt><dd class="text-ink">{{ formatDateTime(data.exam.closes_on) }}</dd></div>
 			</dl>
 			<p class="mt-4 text-xs text-body">
@@ -35,14 +35,44 @@
 				type="button"
 				:disabled="starting"
 				class="mt-4 rounded-md bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
-				@click="start"
+				@click="showStartConfirm = true"
 			>
-				{{ starting ? "Starting..." : "Start exam" }}
+				Start test
 			</button>
 		</div>
 
+		<div v-if="showStartConfirm && data.attempt.status === 'Invited'" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+			<div class="max-w-md rounded-xl bg-white p-6">
+				<h2 class="text-lg font-bold text-ink">Before you start</h2>
+				<p class="mt-2 text-sm text-body">
+					This test runs in full-screen mode. Leaving full-screen or switching to another tab or window will be logged and may
+					affect your result<template v-if="data.max_violations"> (this attempt is auto-submitted after {{ data.max_violations }}
+					such violations)</template>. This can't fully prevent switching apps on your device, but repeated attempts are recorded
+					for HR to review.
+				</p>
+				<p v-if="startError" class="mt-2 text-sm text-red-600">{{ startError }}</p>
+				<div class="mt-4 flex justify-end gap-2">
+					<button
+						type="button"
+						class="rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-ink hover:bg-gray-50"
+						@click="showStartConfirm = false"
+					>
+						Cancel
+					</button>
+					<button
+						type="button"
+						:disabled="starting"
+						class="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+						@click="confirmStart"
+					>
+						{{ starting ? "Starting..." : "Start test in full screen" }}
+					</button>
+				</div>
+			</div>
+		</div>
+
 		<!-- In progress -->
-		<div v-else>
+		<div v-else-if="data.attempt.status === 'In Progress'">
 			<div class="sticky top-0 z-10 mb-6 flex items-center justify-between rounded-xl border border-gray-200 bg-white/95 px-5 py-3 backdrop-blur">
 				<div>
 					<h1 class="font-semibold text-ink">{{ data.exam.title }}</h1>
@@ -94,8 +124,15 @@
 				class="mt-6 rounded-md bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
 				@click="submit"
 			>
-				{{ submitting ? "Submitting..." : "Submit exam" }}
+				{{ submitting ? "Submitting..." : "Submit test" }}
 			</button>
+
+			<ExamLockdownOverlay
+				v-if="showLockdownOverlay"
+				:violation-count="violationCount"
+				:max-violations="data.max_violations"
+				@resume="resumeFullscreen"
+			/>
 		</div>
 	</div>
 
@@ -113,6 +150,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 import call from "../../lib/call";
+import ExamLockdownOverlay from "../../components/applicant/ExamLockdownOverlay.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -126,6 +164,10 @@ const starting = ref(false);
 const startError = ref("");
 const submitting = ref(false);
 const submitError = ref("");
+
+const showStartConfirm = ref(false);
+const showLockdownOverlay = ref(false);
+const violationCount = ref(0);
 
 const remainingSeconds = ref(0);
 let timerHandle = null;
@@ -159,15 +201,16 @@ async function load() {
 		const res = await call("gdl.api.applicant.get_exam_attempt", { name: route.params.name });
 		if (res.success) {
 			data.value = res.data;
+			violationCount.value = data.value.attempt.violation_count || 0;
 			seedAnswers();
 			if (data.value.attempt.status === "In Progress") {
 				startTimer();
 			}
 		} else {
-			loadError.value = res.message || "This exam is not available.";
+			loadError.value = res.message || "This test is not available.";
 		}
 	} catch (err) {
-		loadError.value = err.messages?.[0] || "This exam is not available.";
+		loadError.value = err.messages?.[0] || "This test is not available.";
 	} finally {
 		loaded.value = true;
 	}
@@ -183,18 +226,70 @@ function handleBeforeUnload(e) {
 	e.returnValue = "";
 }
 
+async function reportViolation(eventType) {
+	if (!isInProgress() || showLockdownOverlay.value) return;
+	showLockdownOverlay.value = true;
+	try {
+		const res = await call("gdl.api.applicant.log_exam_violation", { attempt: route.params.name, event_type: eventType });
+		violationCount.value = res?.data?.violation_count ?? violationCount.value;
+		if (res?.data?.should_auto_submit) {
+			showLockdownOverlay.value = false;
+			submit();
+		}
+	} catch {
+		// Best-effort logging - don't block the applicant on this failing.
+	}
+}
+
+function handleFullscreenChange() {
+	if (isInProgress() && !document.fullscreenElement && !showLockdownOverlay.value) {
+		reportViolation("Fullscreen Exit");
+	}
+}
+
+function handleVisibilityChange() {
+	if (isInProgress() && document.hidden && !showLockdownOverlay.value) {
+		reportViolation("Tab Switch / Window Blur");
+	}
+}
+
+async function enterFullscreen() {
+	try {
+		await document.documentElement.requestFullscreen();
+	} catch {
+		// Fullscreen may be blocked/unsupported (e.g. iOS Safari) - the test
+		// still works, just without the fullscreen-exit detection signal.
+	}
+}
+
+async function resumeFullscreen() {
+	showLockdownOverlay.value = false;
+	await enterFullscreen();
+}
+
 onMounted(() => {
 	load();
 	window.addEventListener("beforeunload", handleBeforeUnload);
+	document.addEventListener("fullscreenchange", handleFullscreenChange);
+	document.addEventListener("visibilitychange", handleVisibilityChange);
 });
 onBeforeUnmount(() => {
 	if (timerHandle) clearInterval(timerHandle);
 	window.removeEventListener("beforeunload", handleBeforeUnload);
+	document.removeEventListener("fullscreenchange", handleFullscreenChange);
+	document.removeEventListener("visibilitychange", handleVisibilityChange);
 });
 onBeforeRouteLeave(() => {
 	if (!isInProgress()) return true;
-	return window.confirm("Your exam is still in progress. Are you sure you want to leave?");
+	return window.confirm("Your test is still in progress. Are you sure you want to leave?");
 });
+
+async function confirmStart() {
+	await start();
+	if (!startError.value) {
+		showStartConfirm.value = false;
+	}
+}
 
 async function start() {
 	starting.value = true;
@@ -203,11 +298,12 @@ async function start() {
 		const res = await call("gdl.api.applicant.start_exam_attempt", { name: route.params.name });
 		if (res.success) {
 			await load();
+			await enterFullscreen();
 		} else {
-			startError.value = res.message || "Could not start the exam.";
+			startError.value = res.message || "Could not start the test.";
 		}
 	} catch (err) {
-		startError.value = err.messages?.[0] || "Could not start the exam.";
+		startError.value = err.messages?.[0] || "Could not start the test.";
 	} finally {
 		starting.value = false;
 	}
@@ -269,10 +365,10 @@ async function submit() {
 		if (res.success) {
 			router.push("/applications");
 		} else {
-			submitError.value = res.message || "Could not submit the exam.";
+			submitError.value = res.message || "Could not submit the test.";
 		}
 	} catch (err) {
-		submitError.value = err.messages?.[0] || "Could not submit the exam.";
+		submitError.value = err.messages?.[0] || "Could not submit the test.";
 	} finally {
 		submitting.value = false;
 	}

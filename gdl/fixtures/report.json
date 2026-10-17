@@ -1,0 +1,162 @@
+[
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disable_prepared_report_automation": 0,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "doctype_to_sync": [],
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "GDL",
+  "modified": "2026-09-08 18:03:21.874448",
+  "module": "Gdl",
+  "name": "Recruitment Pipeline Funnel",
+  "prepared_report": 0,
+  "query": "SELECT\n\t\t\tjob_opening AS \"Vacancy:Link/Job Opening:220\",\n\t\t\tstatus AS \"Status:Data:200\",\n\t\t\tCOUNT(name) AS \"Applications:Int:120\"\n\t\tFROM `tabJob Application`\n\t\tGROUP BY job_opening, status\n\t\tORDER BY job_opening, status",
+  "ref_doctype": "Job Application",
+  "reference_report": null,
+  "report_name": "Recruitment Pipeline Funnel",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "role": "HR Officer"
+   }
+  ],
+  "snapshot_report": 0,
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disable_prepared_report_automation": 0,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "doctype_to_sync": [],
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "GDL",
+  "modified": "2026-09-08 18:03:22.077835",
+  "module": "Gdl",
+  "name": "Turnaround Time",
+  "prepared_report": 0,
+  "query": "SELECT\n\t\t\tja.job_opening AS \"Vacancy:Link/Job Opening:220\",\n\t\t\tCOUNT(DISTINCT t.job_application) AS \"Applications:Int:120\",\n\t\t\tROUND(AVG(DATEDIFF(t.terminal_on, ja.creation)), 1) AS \"Avg Turnaround (days):Float:180\"\n\t\tFROM (\n\t\t\tSELECT reference_name AS job_application, MIN(timestamp) AS terminal_on\n\t\t\tFROM `tabAudit Log`\n\t\t\tWHERE reference_doctype = 'Job Application'\n\t\t\t  AND new_value IN ('Selected', 'Rejected', 'Appointed')\n\t\t\tGROUP BY reference_name\n\t\t) t\n\t\tJOIN `tabJob Application` ja ON ja.name = t.job_application\n\t\tGROUP BY ja.job_opening\n\t\tORDER BY ja.job_opening",
+  "ref_doctype": "Job Application",
+  "reference_report": null,
+  "report_name": "Turnaround Time",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "role": "HR Officer"
+   }
+  ],
+  "snapshot_report": 0,
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disable_prepared_report_automation": 0,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "doctype_to_sync": [],
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "GDL",
+  "modified": "2026-09-08 18:03:22.120511",
+  "module": "Gdl",
+  "name": "Exam Pass Rate",
+  "prepared_report": 0,
+  "query": "SELECT\n\t\t\tea.exam AS \"Exam:Link/Exam:220\",\n\t\t\tCOUNT(ea.name) AS \"Attempts:Int:100\",\n\t\t\tSUM(CASE WHEN ea.is_pass = 1 THEN 1 ELSE 0 END) AS \"Passes:Int:100\",\n\t\t\tROUND(100.0 * SUM(CASE WHEN ea.is_pass = 1 THEN 1 ELSE 0 END) / NULLIF(COUNT(ea.name), 0), 1) AS \"Pass Rate (%):Float:130\"\n\t\tFROM `tabExam Attempt` ea\n\t\tWHERE ea.status = 'Submitted'\n\t\tGROUP BY ea.exam\n\t\tORDER BY ea.exam",
+  "ref_doctype": "Job Application",
+  "reference_report": null,
+  "report_name": "Exam Pass Rate",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "role": "HR Officer"
+   }
+  ],
+  "snapshot_report": 0,
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disable_prepared_report_automation": 0,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "doctype_to_sync": [],
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "GDL",
+  "modified": "2026-09-08 18:03:22.160345",
+  "module": "Gdl",
+  "name": "Interview Score Summary",
+  "prepared_report": 0,
+  "query": "SELECT\n\t\t\tsched.job_opening AS \"Vacancy:Link/Job Opening:220\",\n\t\t\tCOUNT(s.name) AS \"Sessions:Int:100\",\n\t\t\tROUND(AVG(s.total_score), 1) AS \"Avg Score:Float:110\",\n\t\t\tMIN(s.total_score) AS \"Min Score:Float:100\",\n\t\t\tMAX(s.total_score) AS \"Max Score:Float:100\"\n\t\tFROM `tabInterview Session` s\n\t\tJOIN `tabInterview Schedule` sched ON sched.name = s.interview\n\t\tWHERE s.status = 'Completed'\n\t\tGROUP BY sched.job_opening\n\t\tORDER BY sched.job_opening",
+  "ref_doctype": "Job Application",
+  "reference_report": null,
+  "report_name": "Interview Score Summary",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "role": "HR Officer"
+   }
+  ],
+  "snapshot_report": 0,
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disable_prepared_report_automation": 0,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "doctype_to_sync": [],
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "GDL",
+  "modified": "2026-09-08 18:03:22.200386",
+  "module": "Gdl",
+  "name": "Offer Conversion",
+  "prepared_report": 0,
+  "query": "SELECT\n\t\t\tja.job_opening AS \"Vacancy:Link/Job Opening:220\",\n\t\t\tCOUNT(o.name) AS \"Offers Sent:Int:110\",\n\t\t\tSUM(CASE WHEN o.status = 'Accepted' THEN 1 ELSE 0 END) AS \"Accepted:Int:100\",\n\t\t\tSUM(CASE WHEN o.status = 'Rejected' THEN 1 ELSE 0 END) AS \"Declined:Int:100\",\n\t\t\tSUM(CASE WHEN o.status = 'Awaiting Response' THEN 1 ELSE 0 END) AS \"Pending:Int:100\"\n\t\tFROM `tabJob Offer` o\n\t\tJOIN `tabJob Application` ja ON ja.name = o.gdl_job_application\n\t\tWHERE o.docstatus != 2\n\t\tGROUP BY ja.job_opening\n\t\tORDER BY ja.job_opening",
+  "ref_doctype": "Job Application",
+  "reference_report": null,
+  "report_name": "Offer Conversion",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "role": "HR Officer"
+   }
+  ],
+  "snapshot_report": 0,
+  "timeout": 0
+ }
+]

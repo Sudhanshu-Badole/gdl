@@ -81,14 +81,50 @@
 			</div>
 		</div>
 
-		<ComingSoonPanel v-else feature="Document verification" class="mt-6" />
+		<div v-else class="mt-6">
+			<div v-if="verificationLoaded && pendingVerifications.length" class="overflow-x-auto rounded-xl border border-gray-200">
+				<table class="w-full text-left text-sm">
+					<thead class="border-b border-gray-200 text-xs uppercase tracking-wide text-body">
+						<tr>
+							<th class="px-4 py-3 font-medium"></th>
+							<th class="px-4 py-3 font-medium">Name</th>
+							<th class="px-4 py-3 font-medium">Email</th>
+							<th class="px-4 py-3 font-medium">CID</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-100">
+						<template v-for="c in pendingVerifications" :key="c.name">
+							<tr>
+								<td class="px-4 py-3">
+									<button class="text-body hover:text-ink" @click="toggleExpand(c)">
+										{{ expandedApplicant === c.name ? "▾" : "▸" }}
+									</button>
+								</td>
+								<td class="px-4 py-3 font-medium text-ink">{{ c.applicant_name }}</td>
+								<td class="px-4 py-3 text-body">{{ c.email_id }}</td>
+								<td class="px-4 py-3 text-body">{{ c.gdl_cid_number || "—" }}</td>
+							</tr>
+							<tr v-if="expandedApplicant === c.name">
+								<td colspan="4" class="bg-gray-50 px-4 py-3">
+									<ApplicantDocumentsPanel :job-applicant="c.name" />
+								</td>
+							</tr>
+						</template>
+					</tbody>
+				</table>
+			</div>
+			<p v-else-if="verificationLoaded" class="text-sm text-body">No documents are awaiting verification.</p>
+			<div v-else class="space-y-3">
+				<div v-for="i in 4" :key="i" class="h-10 animate-pulse rounded-md bg-gray-100"></div>
+			</div>
+		</div>
 	</div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import call from "../../lib/call";
-import ComingSoonPanel from "../../components/hr/ComingSoonPanel.vue";
+import ApplicantDocumentsPanel from "../../components/hr/ApplicantDocumentsPanel.vue";
 
 const activeTab = ref("all");
 const search = ref("");
@@ -96,6 +132,30 @@ const sort = ref("creation desc");
 const candidates = ref([]);
 const loaded = ref(false);
 const error = ref("");
+
+const pendingVerifications = ref([]);
+const verificationLoaded = ref(false);
+const expandedApplicant = ref("");
+
+function toggleExpand(candidate) {
+	expandedApplicant.value = expandedApplicant.value === candidate.name ? "" : candidate.name;
+}
+
+async function loadPendingVerifications() {
+	verificationLoaded.value = false;
+	try {
+		const res = await call("gdl.api.hr.list_pending_document_verifications");
+		pendingVerifications.value = res?.data || [];
+	} finally {
+		verificationLoaded.value = true;
+	}
+}
+
+watch(activeTab, (tab) => {
+	if (tab === "verification" && !verificationLoaded.value) {
+		loadPendingVerifications();
+	}
+});
 
 async function loadCandidates() {
 	loaded.value = false;

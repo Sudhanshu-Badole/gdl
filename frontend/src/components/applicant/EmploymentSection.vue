@@ -17,7 +17,7 @@
 			v-if="!rows.length && !showForm"
 			:icon="BriefcaseIcon"
 			title="No experience added"
-			subtitle="Required for experienced vacancies. Upload a certificate or experience letter (PDF) for each role."
+			subtitle="Required for experienced vacancies. Add your roles, then upload your experience letter below."
 		/>
 
 		<div v-else-if="rows.length" class="mt-4 space-y-3">
@@ -68,6 +68,17 @@
 				</button>
 			</div>
 		</form>
+
+		<DocumentUploadCard
+			class="mt-6"
+			title="Experience Letter"
+			description="Optional, but required for vacancies marked as needing prior work experience."
+			:file-url="experienceLetterUrl"
+			upload-method="gdl.api.applicant.upload_experience_letter"
+			:status="docStatus.status"
+			:remark="docStatus.remark"
+			@uploaded="$emit('changed')"
+		/>
 	</div>
 </template>
 
@@ -76,9 +87,12 @@ import { ref } from "vue";
 import call from "../../lib/call";
 import EmptyState from "./EmptyState.vue";
 import BriefcaseIcon from "../icons/BriefcaseIcon.vue";
+import DocumentUploadCard from "./DocumentUploadCard.vue";
 
 defineProps({
 	rows: { type: Array, required: true },
+	experienceLetterUrl: { type: String, default: null },
+	docStatus: { type: Object, default: () => ({ status: "Submitted", remark: null }) },
 });
 const emit = defineEmits(["changed"]);
 

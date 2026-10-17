@@ -12,12 +12,17 @@
   "job_application",
   "job_applicant",
   "status",
+  "attendance_response",
+  "attendance_responded_on",
   "started_on",
   "submitted_on",
   "total_score",
   "is_fully_graded",
   "is_pass",
-  "answers"
+  "evaluator_comment",
+  "panel_comment",
+  "answers",
+  "violations"
  ],
  "fields": [
   {
@@ -55,6 +60,19 @@
    "reqd": 1
   },
   {
+   "default": "Pending",
+   "fieldname": "attendance_response",
+   "fieldtype": "Select",
+   "label": "Attendance Response",
+   "options": "Pending\nConfirmed\nDeclined"
+  },
+  {
+   "fieldname": "attendance_responded_on",
+   "fieldtype": "Datetime",
+   "label": "Responded On",
+   "read_only": 1
+  },
+  {
    "fieldname": "started_on",
    "fieldtype": "Datetime",
    "label": "Started On",
@@ -88,10 +106,29 @@
    "read_only": 1
   },
   {
+   "description": "HR/Evaluator's overall remark on this attempt.",
+   "fieldname": "evaluator_comment",
+   "fieldtype": "Small Text",
+   "label": "Evaluator Comment"
+  },
+  {
+   "description": "Panel Member's overall remark on this attempt's result, shown alongside interview scoring.",
+   "fieldname": "panel_comment",
+   "fieldtype": "Small Text",
+   "label": "Panel Comment"
+  },
+  {
    "fieldname": "answers",
    "fieldtype": "Table",
    "label": "Answers",
    "options": "Exam Attempt Answer"
+  },
+  {
+   "description": "Fullscreen-exit/tab-switch events detected during the attempt - audit trail for HR, not a hard block.",
+   "fieldname": "violations",
+   "fieldtype": "Table",
+   "label": "Violations",
+   "options": "Exam Attempt Violation"
   }
  ],
  "grid_page_length": 50,

@@ -14,6 +14,10 @@ logger = get_logger("api.public")
 
 APPLICANT_ROLE = "Applicant Portal User"
 PHONE_RE = re.compile(r"^\+?[0-9 ()-]{7,20}$")
+# No CID format has been confirmed by the client yet - this is a
+# conservative placeholder (alphanumeric, 5-20 chars) pending the real
+# format, not a real validation of Bhutanese CID structure.
+CID_RE = re.compile(r"^[A-Za-z0-9]{5,20}$")
 HOME_VACANCIES_LIMIT = 6
 
 
@@ -38,7 +42,7 @@ def get_open_vacancies(include_recent=0):
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-def register_applicant(full_name, email, phone, password):
+def register_applicant(full_name, email, phone, password, cid_number):
 	"""Applicant self-registration. Deliberately has no `role` parameter -
 	the only role this can ever grant is Applicant Portal User, hardcoded
 	below. HR/Panel accounts cannot be created through this or any other
@@ -48,11 +52,19 @@ def register_applicant(full_name, email, phone, password):
 	email = (email or "").strip().lower()
 	phone = (phone or "").strip()
 	password = password or ""
+	cid_number = (cid_number or "").strip()
 
-	_validate_registration_input(full_name, email, phone, password)
+	_validate_registration_input(full_name, email, phone, password, cid_number)
 
 	if frappe.db.exists("User", email):
 		gdl_error("An account with this email already exists")
+	# Client feedback (Phase 1): one applicant account per CID, regardless of
+	# which email it's registered under. The DB-level unique index on
+	# gdl_cid_number (setup_custom_fields.py) is the real backstop; this is
+	# just a friendlier pre-check than letting the insert below throw a raw
+	# DuplicateEntryError.
+	if frappe.db.exists("Job Applicant", {"gdl_cid_number": cid_number}):
+		gdl_error("An account with this CID number already exists")
 
 	name_parts = full_name.split(" ", 1)
 	user = frappe.get_doc(
@@ -83,6 +95,7 @@ def register_applicant(full_name, email, phone, password):
 				"applicant_name": full_name,
 				"email_id": email,
 				"phone_number": phone,
+				"gdl_cid_number": cid_number,
 				"status": "Open",
 			}
 		)
@@ -143,12 +156,15 @@ def get_vacancy_detail(name):
 		"posted_on",
 		"description",
 		"gdl_eligibility_requirements",
-		"gdl_terms_of_reference",
 		"gdl_min_experience_years",
 		"gdl_degree_required",
 		"gdl_min_degree_score",
 		"gdl_experienced_vacancy",
 	]
+	# Deliberately does NOT include gdl_terms_of_reference - client feedback
+	# (Phase 3) restricts TOR to applicants once Shortlisted (see
+	# gdl.api.applicant.get_terms_of_reference) and to Panel Members, never
+	# to the public/guest-accessible vacancy page.
 	opening = frappe.get_all(
 		"Job Opening", filters={"name": name, "publish": 1}, fields=fields, limit_page_length=1
 	)
@@ -156,7 +172,6 @@ def get_vacancy_detail(name):
 		return success(data=None)
 
 	opening = opening[0]
-	opening["gdl_terms_of_reference_filename"] = _tor_filename(opening.get("gdl_terms_of_reference"))
 	opening["gdl_required_documents"] = frappe.get_all(
 		"Job Opening Required Document",
 		filters={"parent": name},
@@ -167,15 +182,7 @@ def get_vacancy_detail(name):
 	return success(data=opening)
 
 
-def _tor_filename(file_url):
-	if not file_url:
-		return None
-	from urllib.parse import unquote
-
-	return unquote(file_url).rsplit("/", 1)[-1]
-
-
-def _validate_registration_input(full_name, email, phone, password):
+def _validate_registration_input(full_name, email, phone, password, cid_number):
 	if not full_name:
 		gdl_error("Full name is required")
 
@@ -183,6 +190,9 @@ def _validate_registration_input(full_name, email, phone, password):
 
 	if not PHONE_RE.match(phone):
 		gdl_error("Enter a valid phone number")
+
+	if not CID_RE.match(cid_number):
+		gdl_error("Enter a valid CID / National ID number")
 
 	if len(password) < 8:
 		gdl_error("Password must be at least 8 characters long")

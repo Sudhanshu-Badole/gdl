@@ -1,10 +1,10 @@
 <template>
 	<div v-if="loaded && !loadError">
-		<!-- No exam yet -->
+		<!-- No test yet -->
 		<div v-if="!exam" class="rounded-xl border border-gray-200 p-6">
-			<h2 class="mb-1 font-semibold text-ink">Create an exam</h2>
+			<h2 class="mb-1 font-semibold text-ink">Create a test</h2>
 			<p class="mb-4 text-sm text-body">
-				Candidates already at "Exam Invited / Scheduled" will be invited automatically once you publish.
+				Candidates already at "Test Invited / Scheduled" will be invited automatically once you publish.
 			</p>
 			<ExamBuilderForm :job-opening="props.jobOpening" @saved="load" />
 		</div>
@@ -12,22 +12,33 @@
 		<!-- Draft: build questions, then publish -->
 		<div v-else-if="exam.status === 'Draft'" class="space-y-6">
 			<div class="rounded-xl border border-gray-200 p-6">
-				<h2 class="mb-4 font-semibold text-ink">Exam details</h2>
+				<h2 class="mb-4 font-semibold text-ink">Test details</h2>
 				<ExamBuilderForm :job-opening="props.jobOpening" :existing="exam" @saved="load" />
 			</div>
 
 			<div class="rounded-xl border border-gray-200 p-6">
 				<div class="mb-4 flex items-center justify-between">
 					<h2 class="font-semibold text-ink">Questions ({{ questions.length }})</h2>
-					<button
-						v-if="!addingQuestion"
-						type="button"
-						class="rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-ink hover:bg-gray-50"
-						@click="addingQuestion = true"
-					>
-						+ Add question
-					</button>
+					<div class="flex gap-2">
+						<button
+							type="button"
+							class="rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-ink hover:bg-gray-50"
+							@click="showBankPicker = !showBankPicker"
+						>
+							{{ showBankPicker ? "Close bank" : "+ Add from bank" }}
+						</button>
+						<button
+							v-if="!addingQuestion"
+							type="button"
+							class="rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-ink hover:bg-gray-50"
+							@click="addingQuestion = true"
+						>
+							+ Add question
+						</button>
+					</div>
 				</div>
+
+				<QuestionBankPicker v-if="showBankPicker" :exam="exam.name" class="mb-4" @assigned="onQuestionSaved" />
 
 				<ExamQuestionForm
 					v-if="addingQuestion"
@@ -71,7 +82,7 @@
 					class="mt-4 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
 					@click="publish"
 				>
-					{{ publishing ? "Publishing..." : "Publish exam" }}
+					{{ publishing ? "Publishing..." : "Publish test" }}
 				</button>
 			</div>
 		</div>
@@ -89,13 +100,29 @@
 					</div>
 					<span class="rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-700">Published</span>
 				</div>
-				<button
-					type="button"
-					class="mt-4 rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-ink hover:bg-gray-50"
-					@click="closeAndMarkAbsent"
-				>
-					Close & mark absent
-				</button>
+				<div class="mt-4 flex flex-wrap gap-3">
+					<button
+						type="button"
+						:disabled="publishing"
+						class="rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-ink hover:bg-gray-50 disabled:opacity-60"
+						@click="publish"
+					>
+						{{ publishing ? "Inviting..." : "Invite new candidates" }}
+					</button>
+					<button
+						type="button"
+						class="rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-ink hover:bg-gray-50"
+						@click="closeAndMarkAbsent"
+					>
+						Close & mark absent
+					</button>
+				</div>
+				<p class="mt-2 text-xs text-body">
+					"Invite new candidates" re-checks for anyone advanced to "Test Invited / Scheduled" since this test was
+					published and invites them - it won't re-invite anyone already invited.
+				</p>
+				<p v-if="publishMessage" class="mt-2 text-sm text-brand-700">{{ publishMessage }}</p>
+				<p v-if="publishError" class="mt-2 text-sm text-red-600">{{ publishError }}</p>
 				<p v-if="closeMessage" class="mt-2 text-sm text-brand-700">{{ closeMessage }}</p>
 				<p v-if="closeError" class="mt-2 text-sm text-red-600">{{ closeError }}</p>
 			</div>
@@ -109,6 +136,7 @@
 							<tr>
 								<th class="px-4 py-3 font-medium">Applicant</th>
 								<th class="px-4 py-3 font-medium">Status</th>
+								<th class="px-4 py-3 font-medium">Attending</th>
 								<th class="px-4 py-3 font-medium">Score</th>
 								<th class="px-4 py-3 font-medium">Result</th>
 								<th class="px-4 py-3 text-right font-medium">Action</th>
@@ -124,6 +152,7 @@
 									<td class="px-4 py-3">
 										<StatusPill :status="a.status" />
 									</td>
+									<td class="px-4 py-3 text-body">{{ a.attendance_response || "Pending" }}</td>
 									<td class="px-4 py-3 text-body">{{ a.total_score ?? "—" }}</td>
 									<td class="px-4 py-3 text-body">
 										<span v-if="!a.is_fully_graded">Pending</span>
@@ -141,7 +170,7 @@
 									</td>
 								</tr>
 								<tr v-if="gradingFor === a.name">
-									<td colspan="5" class="px-4 pb-4">
+									<td colspan="6" class="px-4 pb-4">
 										<ExamGradingForm :attempt="a.name" @saved="onGraded" @cancel="gradingFor = null" />
 									</td>
 								</tr>
@@ -185,6 +214,7 @@ import UsersIcon from "../icons/UsersIcon.vue";
 import ExamBuilderForm from "./ExamBuilderForm.vue";
 import ExamQuestionForm from "./ExamQuestionForm.vue";
 import ExamGradingForm from "./ExamGradingForm.vue";
+import QuestionBankPicker from "./QuestionBankPicker.vue";
 
 const props = defineProps({
 	jobOpening: { type: String, required: true },
@@ -197,10 +227,12 @@ const questions = ref([]);
 const attempts = ref([]);
 
 const addingQuestion = ref(false);
+const showBankPicker = ref(false);
 const editingQuestion = ref(null);
 const questionError = ref("");
 const publishing = ref(false);
 const publishError = ref("");
+const publishMessage = ref("");
 
 const gradingFor = ref(null);
 const closeMessage = ref("");
@@ -225,7 +257,7 @@ async function load() {
 			await loadQueue();
 		}
 	} catch (err) {
-		loadError.value = err.messages?.[0] || "Could not load exam.";
+		loadError.value = err.messages?.[0] || "Could not load test.";
 	}
 }
 
@@ -234,7 +266,7 @@ async function loadQueue() {
 		const res = await call("gdl.api.hr_exam.get_exam_queue", { job_opening: props.jobOpening });
 		attempts.value = res?.data?.attempts || [];
 	} catch (err) {
-		loadError.value = err.messages?.[0] || "Could not load exam attempts.";
+		loadError.value = err.messages?.[0] || "Could not load test attempts.";
 	}
 }
 
@@ -265,15 +297,17 @@ async function removeQuestion(name) {
 async function publish() {
 	publishing.value = true;
 	publishError.value = "";
+	publishMessage.value = "";
 	try {
 		const res = await call("gdl.api.hr_exam.publish_exam", { name: exam.value.name });
 		if (res.success) {
+			publishMessage.value = res.message;
 			await load();
 		} else {
-			publishError.value = res.message || "Could not publish exam.";
+			publishError.value = res.message || "Could not publish test.";
 		}
 	} catch (err) {
-		publishError.value = err.messages?.[0] || "Could not publish exam.";
+		publishError.value = err.messages?.[0] || "Could not publish test.";
 	} finally {
 		publishing.value = false;
 	}
@@ -296,7 +330,7 @@ async function closeAndMarkAbsent() {
 		closeMessage.value = res.message;
 		await loadQueue();
 	} catch (err) {
-		closeError.value = err.messages?.[0] || "Could not close exam.";
+		closeError.value = err.messages?.[0] || "Could not close test.";
 	}
 }
 

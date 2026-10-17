@@ -16,7 +16,7 @@
 			v-if="!rows.length && !showForm"
 			:icon="GraduationCapIcon"
 			title="No education added"
-			subtitle="Add your qualifications with your score (GPA or percentage) and upload the certificate (PDF) for each."
+			subtitle="Add your qualifications with your score (GPA or percentage), then upload your certificate below."
 		/>
 
 		<div v-else-if="rows.length" class="mt-4 space-y-3">
@@ -26,6 +26,7 @@
 					<p class="text-xs text-body">
 						{{ row.start_date || "" }}<template v-if="row.completion_date"> - {{ row.completion_date }}</template>
 						<template v-if="row.grade_or_result"> · {{ row.grade_or_result }}</template>
+							<template v-if="row.score_percent"> · {{ row.score_percent }}%</template>
 					</p>
 				</div>
 				<div class="flex shrink-0 gap-3 text-xs">
@@ -41,7 +42,7 @@
 				<input v-model="form.qualification" required placeholder="Qualification" class="rounded-md border border-gray-200 px-3 py-2 text-sm" />
 				<input v-model="form.institution_name" required placeholder="Institution Name" class="rounded-md border border-gray-200 px-3 py-2 text-sm" />
 			</div>
-			<div class="grid gap-3 sm:grid-cols-3">
+			<div class="grid gap-3 sm:grid-cols-4">
 				<div>
 					<label class="mb-1 block text-xs text-body">Start Date</label>
 					<input v-model="form.start_date" type="date" class="w-full rounded-md border border-gray-200 px-3 py-2 text-sm" />
@@ -51,6 +52,10 @@
 					<input v-model="form.completion_date" type="date" class="w-full rounded-md border border-gray-200 px-3 py-2 text-sm" />
 				</div>
 				<input v-model="form.grade_or_result" placeholder="Grade or Result" class="self-end rounded-md border border-gray-200 px-3 py-2 text-sm" />
+				<div>
+					<label class="mb-1 block text-xs text-body">Score (%)</label>
+					<input v-model="form.score_percent" type="number" min="0" max="100" step="0.01" placeholder="e.g. 60" class="w-full rounded-md border border-gray-200 px-3 py-2 text-sm" />
+				</div>
 			</div>
 			<p v-if="error" class="text-sm text-red-600">{{ error }}</p>
 			<div class="flex gap-2">
@@ -62,6 +67,17 @@
 				</button>
 			</div>
 		</form>
+
+		<DocumentUploadCard
+			class="mt-6"
+			title="Academic Certificate"
+			:required="true"
+			:file-url="academicCertificateUrl"
+			upload-method="gdl.api.applicant.upload_academic_certificate"
+			:status="docStatus.status"
+			:remark="docStatus.remark"
+			@uploaded="$emit('changed')"
+		/>
 	</div>
 </template>
 
@@ -70,14 +86,17 @@ import { ref } from "vue";
 import call from "../../lib/call";
 import EmptyState from "./EmptyState.vue";
 import GraduationCapIcon from "../icons/GraduationCapIcon.vue";
+import DocumentUploadCard from "./DocumentUploadCard.vue";
 
 defineProps({
 	rows: { type: Array, required: true },
+	academicCertificateUrl: { type: String, default: null },
+	docStatus: { type: Object, default: () => ({ status: "Submitted", remark: null }) },
 });
 const emit = defineEmits(["changed"]);
 
-const FIELDS = ["qualification", "institution_name", "start_date", "completion_date", "grade_or_result"];
-const EMPTY_FORM = () => ({ qualification: "", institution_name: "", start_date: "", completion_date: "", grade_or_result: "" });
+const FIELDS = ["qualification", "institution_name", "start_date", "completion_date", "grade_or_result", "score_percent"];
+const EMPTY_FORM = () => ({ qualification: "", institution_name: "", start_date: "", completion_date: "", grade_or_result: "", score_percent: "" });
 
 const showForm = ref(false);
 const editingRowName = ref(null);

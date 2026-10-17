@@ -45,6 +45,17 @@
 				/>
 			</div>
 			<div>
+				<label for="cid_number" class="mb-1 block text-sm font-medium text-ink">CID / National ID number</label>
+				<input
+					id="cid_number"
+					v-model.trim="form.cid_number"
+					type="text"
+					required
+					class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+				/>
+				<p class="mt-1 text-xs text-body">Only one account is allowed per CID number.</p>
+			</div>
+			<div>
 				<label for="password" class="mb-1 block text-sm font-medium text-ink">Password</label>
 				<input
 					id="password"
@@ -79,7 +90,7 @@
 import { reactive, ref } from "vue";
 import call from "../lib/call";
 
-const form = reactive({ full_name: "", email: "", phone: "", password: "" });
+const form = reactive({ full_name: "", email: "", phone: "", password: "", cid_number: "" });
 const submitting = ref(false);
 const submitted = ref(false);
 const error = ref("");

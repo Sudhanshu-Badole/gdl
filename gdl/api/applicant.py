@@ -11,12 +11,16 @@ tell "my own record" from "someone else's" if we did.
 
 import frappe
 
+from gdl.api.hr_offer import _maybe_auto_issue_appointment_letter
 from gdl.api.response import success
+from gdl.utils.audit import set_application_status
 from gdl.utils.completeness import COMPLETENESS_THRESHOLD
+from gdl.utils.documents import DOCUMENT_KEYS, document_status_info, reset_document_status, tor_filename
+from gdl.utils.eligibility import check_vacancy_eligibility
 from gdl.utils.exam_scoring import finalize_attempt_grading
 from gdl.utils.exceptions import gdl_error
 from gdl.utils.logger import get_logger
-from gdl.utils.notifications import send_email_or_log
+from gdl.utils.notifications import notify_user, send_email_or_log
 from gdl.utils.uploads import save_upload, save_upload_for_child_row
 
 logger = get_logger("api.applicant")
@@ -72,11 +76,17 @@ PERSONAL_INFO_FIELDS = [
 def update_personal_info(**fields):
 	doc = _get_own_job_applicant()
 
+	cid_changed = "gdl_cid_number" in fields and fields["gdl_cid_number"] != doc.gdl_cid_number
 	for fieldname in PERSONAL_INFO_FIELDS:
 		if fieldname in fields:
 			doc.set(fieldname, fields[fieldname])
 
 	doc.save()
+	# A changed CID invalidates any prior National ID verification - HR needs
+	# to re-check the document against the new number (see
+	# PersonalInfoSection.vue's warning copy, which promises exactly this).
+	if cid_changed and doc.gdl_national_id:
+		reset_document_status(doc, "national_id")
 	logger.info(f"personal info updated for {frappe.session.user}")
 	return success(data=doc.as_dict(), message="Personal information updated.")
 
@@ -128,7 +138,7 @@ def _delete_child_row(fieldname, row_name):
 	return doc
 
 
-EDUCATION_FIELDS = ["qualification", "institution_name", "start_date", "completion_date", "grade_or_result"]
+EDUCATION_FIELDS = ["qualification", "institution_name", "start_date", "completion_date", "grade_or_result", "score_percent"]
 
 
 @frappe.whitelist(methods=["POST"])
@@ -185,41 +195,46 @@ def delete_employment(row_name):
 # the applicant themselves; HR Officer's existing Job Applicant read grant
 # (Task 1.3) covers HR access.
 
-MANDATORY_DOCUMENT_FIELDS = {
-	"cv": "resume_attachment",  # reuse the standard field, not a new gdl_ one
-	"national_id": "gdl_national_id",
-	"academic_certificate": "gdl_academic_certificate",
-}
-OPTIONAL_DOCUMENT_FIELDS = {
-	"experience_letter": "gdl_experience_letter",
-}
-
-
-def _upload_document(fieldname):
+def _upload_document(document_key):
+	fieldname = DOCUMENT_KEYS[document_key][0]
 	doc = _get_own_job_applicant()
 	url = save_upload(doc, fieldname, DOCUMENT_EXTENSIONS, max_size_mb=5, is_private=1)
+	# Every (re)upload reverts any prior HR verification decision - a new file
+	# needs a fresh look, it can't inherit the old file's Verified/Sent Back
+	# status.
+	reset_document_status(doc, document_key)
 	logger.info(f"{fieldname} uploaded for {frappe.session.user}")
 	return success(data={"file_url": url}, message="Document uploaded.")
 
 
 @frappe.whitelist(methods=["POST"])
 def upload_cv():
-	return _upload_document(MANDATORY_DOCUMENT_FIELDS["cv"])
+	return _upload_document("cv")
 
 
 @frappe.whitelist(methods=["POST"])
 def upload_national_id():
-	return _upload_document(MANDATORY_DOCUMENT_FIELDS["national_id"])
+	return _upload_document("national_id")
 
 
 @frappe.whitelist(methods=["POST"])
 def upload_academic_certificate():
-	return _upload_document(MANDATORY_DOCUMENT_FIELDS["academic_certificate"])
+	return _upload_document("academic_certificate")
 
 
 @frappe.whitelist(methods=["POST"])
 def upload_experience_letter():
-	return _upload_document(OPTIONAL_DOCUMENT_FIELDS["experience_letter"])
+	return _upload_document("experience_letter")
+
+
+@frappe.whitelist(methods=["POST"])
+def upload_medical_certificate():
+	return _upload_document("medical_certificate")
+
+
+@frappe.whitelist(methods=["POST"])
+def upload_security_clearance():
+	return _upload_document("security_clearance")
 
 
 @frappe.whitelist(methods=["POST"])
@@ -251,22 +266,21 @@ def delete_other_document(row_name):
 def get_dashboard_data():
 	doc = _get_own_job_applicant()
 
-	documents = {
-		"cv": bool(doc.resume_attachment),
-		"national_id": bool(doc.gdl_national_id),
-		"academic_certificate": bool(doc.gdl_academic_certificate),
-		"experience_letter": bool(doc.gdl_experience_letter),
-		"other": [
-			{"name": d.name, "document_type": d.document_type, "attachment": d.attachment}
-			for d in doc.gdl_other_documents
-		],
-	}
+	documents = {key: bool(doc.get(fieldname)) for key, (fieldname, _label, _mandatory) in DOCUMENT_KEYS.items()}
+	documents["other"] = [
+		{"name": d.name, "document_type": d.document_type, "attachment": d.attachment, "status": d.status}
+		for d in doc.gdl_other_documents
+	]
+	# Verify/Sent Back/Verified status per fixed document key, plus any HR
+	# remark on a Sent Back document - so the applicant sees what to fix.
+	document_status_map = {key: document_status_info(doc, key) for key in DOCUMENT_KEYS}
 
 	return success(
 		data={
 			"applicant_name": doc.applicant_name,
 			"profile_completeness": doc.gdl_profile_completeness or 0,
 			"documents": documents,
+			"document_status": document_status_map,
 			"applications": _get_applications_for(doc.name),
 			"upcoming_exams": [],  # Phase 5
 			"notifications": [],  # Phase 10
@@ -276,16 +290,12 @@ def get_dashboard_data():
 
 # Task 4.4 - Job application submission.
 
-MANDATORY_DOCUMENT_LABELS = {
-	"resume_attachment": "Curriculum Vitae (CV)",
-	"gdl_national_id": "CID / National ID",
-	"gdl_academic_certificate": "Academic Certificate",
-}
-
 
 def _missing_mandatory_documents(applicant_doc):
 	return [
-		label for fieldname, label in MANDATORY_DOCUMENT_LABELS.items() if not applicant_doc.get(fieldname)
+		label
+		for fieldname, label, mandatory in DOCUMENT_KEYS.values()
+		if mandatory and not applicant_doc.get(fieldname)
 	]
 
 
@@ -293,7 +303,17 @@ def _get_open_job_opening(job_opening_name):
 	opening = frappe.db.get_value(
 		"Job Opening",
 		{"name": job_opening_name, "status": "Open", "publish": 1},
-		["name", "job_title", "closes_on", "description"],
+		[
+			"name",
+			"job_title",
+			"closes_on",
+			"description",
+			"gdl_job_type",
+			"gdl_min_experience_years",
+			"gdl_degree_required",
+			"gdl_min_degree_score",
+			"gdl_experienced_vacancy",
+		],
 		as_dict=True,
 	)
 	if not opening:
@@ -348,6 +368,7 @@ def get_apply_context(job_opening):
 		blockers.append("Missing required document(s): " + ", ".join(missing_docs))
 	if _has_existing_application(applicant_doc.name, opening.name):
 		blockers.append("You have already applied to this vacancy.")
+	blockers.extend(check_vacancy_eligibility(applicant_doc, opening))
 
 	return success(
 		data={
@@ -370,6 +391,9 @@ def submit_application(job_opening, cover_letter=None):
 		gdl_error("Please upload all required documents before applying.")
 	if _has_existing_application(applicant_doc.name, opening.name):
 		gdl_error("You have already applied to this vacancy.")
+	eligibility_blockers = check_vacancy_eligibility(applicant_doc, opening)
+	if eligibility_blockers:
+		gdl_error(" ".join(eligibility_blockers))
 
 	application = frappe.get_doc(
 		{
@@ -387,6 +411,13 @@ def submit_application(job_opening, cover_letter=None):
 	frappe.db.set_value("Job Application", application.name, "owner", frappe.session.user)
 
 	_send_application_confirmation_email(applicant_doc, opening, application.name)
+	notify_user(
+		applicant_doc.owner,
+		subject=f"Application received - {opening.job_title}",
+		document_type="Job Application",
+		document_name=application.name,
+		link=f"/applications/{application.name}",
+	)
 	logger.info(f"application {application.name} submitted by {frappe.session.user} for {opening.name}")
 
 	return success(
@@ -433,13 +464,87 @@ def get_application_detail(name):
 			"application": application.as_dict(),
 			"job_opening": job_opening,
 			"exam_schedule": _exam_schedule_for(application),
-			# Honest empty states - Phases 7-9 will populate these once
-			# interviews/offers exist, same pattern as the Phase 3 dashboard.
-			"interview_schedule": None,
+			"interview_schedule": _interview_schedule_for(application),
+			"offer": _offer_for(application),
+			"terms_of_reference": _terms_of_reference_for(application),
+			# Honest empty state - Phase 9 dashboard/report work will populate
+			# this once there's an aggregate score view to show.
 			"scores": None,
-			"offer": None,
 		}
 	)
+
+
+# Statuses before an applicant has been Shortlisted - TOR stays hidden here
+# (client feedback, Phase 3: "TOR should be made available if the applicant
+# is shortlisted"). Once Shortlisted it stays visible for the rest of the
+# application's life, including terminal statuses like Rejected/Offer
+# Declined - simplest reading, no re-hiding logic needed.
+PRE_SHORTLIST_STATUSES = {"Submitted", "Under Review", "Review on Hold", "Not Shortlisted"}
+
+
+def _terms_of_reference_for(application):
+	if application.status in PRE_SHORTLIST_STATUSES:
+		return None
+
+	file_url = frappe.db.get_value("Job Opening", application.job_opening, "gdl_terms_of_reference")
+	if not file_url:
+		return None
+	return {"file_url": file_url, "filename": tor_filename(file_url)}
+
+
+def _offer_for(application):
+	"""None until a Job Offer exists for this application. Status/response
+	fields mirror gdl.api.hr_offer's Job Offer shape."""
+	offer = frappe.db.get_value(
+		"Job Offer",
+		{"gdl_job_application": application.name, "docstatus": ["!=", 2]},
+		["name", "designation", "gdl_salary", "gdl_joining_date", "gdl_response_deadline", "status"],
+		as_dict=True,
+		order_by="creation desc",
+	)
+	if not offer:
+		return None
+
+	appointment_letter = frappe.db.get_value("Appointment Letter", {"gdl_job_offer": offer.name}, "name")
+	return {
+		"job_offer": offer.name,
+		"designation": offer.designation,
+		"salary": offer.gdl_salary,
+		"joining_date": offer.gdl_joining_date,
+		"response_deadline": offer.gdl_response_deadline,
+		"status": offer.status,
+		"appointment_letter": appointment_letter,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def respond_to_offer(job_offer, response):
+	"""Applicant's own self-service accept/decline - counterpart to
+	gdl.api.hr_offer.record_offer_response (the HR-proxy path). Appointment
+	letter generation stays a separate explicit HR action unless
+	Recruitment Settings.auto_issue_appointment_letter is on (Phase 9)."""
+	if response not in ("Accepted", "Rejected"):
+		gdl_error("Response must be Accepted or Rejected.")
+
+	applicant_doc = _get_own_job_applicant()
+	offer = frappe.get_doc("Job Offer", job_offer)
+	if offer.job_applicant != applicant_doc.name:
+		gdl_error("Offer not found.")
+	if offer.status == "Expired":
+		gdl_error("This offer has expired and can no longer be responded to.")
+	if offer.status != "Awaiting Response":
+		gdl_error("This offer has already been responded to.")
+
+	offer.db_set("status", response)
+	offer.db_set("gdl_responded_on", frappe.utils.now_datetime())
+
+	application_status = "Offer Accepted" if response == "Accepted" else "Offer Declined"
+	set_application_status(offer.gdl_job_application, application_status)
+
+	if response == "Accepted":
+		_maybe_auto_issue_appointment_letter(offer)
+
+	return success(message=f"You have {response.lower()} the offer.")
 
 
 def _exam_schedule_for(application):
@@ -450,7 +555,7 @@ def _exam_schedule_for(application):
 	attempt = frappe.db.get_value(
 		"Exam Attempt",
 		{"job_application": application.name},
-		["name", "exam", "status", "total_score", "is_pass", "is_fully_graded"],
+		["name", "exam", "status", "total_score", "is_pass", "is_fully_graded", "attendance_response"],
 		as_dict=True,
 		order_by="creation desc",
 	)
@@ -469,6 +574,41 @@ def _exam_schedule_for(application):
 		"status": attempt.status,
 		"total_score": attempt.total_score if show_score else None,
 		"is_pass": attempt.is_pass if show_score else None,
+		"attendance_response": attempt.attendance_response,
+	}
+
+
+def _interview_schedule_for(application):
+	"""None until an Interview Session exists for this application. Score is
+	withheld unless the vacancy owner opted into publishing it
+	(gdl_publish_interview_scores) and the session is Completed - same gating
+	shape as _exam_schedule_for's gdl_publish_exam_scores/is_fully_graded."""
+	session = frappe.db.get_value(
+		"Interview Session",
+		{"job_application": application.name},
+		["name", "interview", "status", "total_score", "scheduled_on", "attendance_response"],
+		as_dict=True,
+		order_by="creation desc",
+	)
+	if not session:
+		return None
+
+	interview = frappe.db.get_value(
+		"Interview Schedule", session.interview, ["title", "scheduled_on", "venue_or_link", "gdl_location_map_link"], as_dict=True
+	)
+	publish_scores = frappe.db.get_value("Job Opening", application.job_opening, "gdl_publish_interview_scores")
+	show_score = bool(publish_scores) and session.status == "Completed"
+
+	return {
+		"session": session.name,
+		"interview_title": interview.title,
+		# Per-candidate slot when HR has set one, else the shared schedule time.
+		"scheduled_on": session.scheduled_on or interview.scheduled_on,
+		"venue_or_link": interview.venue_or_link,
+		"location_map_link": interview.gdl_location_map_link,
+		"status": session.status,
+		"total_score": session.total_score if show_score else None,
+		"attendance_response": session.attendance_response,
 	}
 
 
@@ -482,7 +622,7 @@ def _get_own_attempt(name):
 	applicant_doc = _get_own_job_applicant()
 	attempt = frappe.get_doc("Exam Attempt", name)
 	if attempt.job_applicant != applicant_doc.name:
-		gdl_error("Exam not found.")
+		gdl_error("Test not found.")
 	return attempt
 
 
@@ -496,11 +636,47 @@ def _check_exam_window(attempt, exam):
 
 	now = frappe.utils.now_datetime()
 	if now < exam.opens_on:
-		gdl_error("This exam has not opened yet.")
+		gdl_error("This test has not opened yet.")
 	if now > exam.closes_on:
 		frappe.db.set_value("Exam Attempt", attempt.name, "status", "Not Attended")
-		frappe.db.set_value("Job Application", attempt.job_application, "status", "Exam Not Attended")
-		gdl_error("The exam window has closed.")
+		set_application_status(attempt.job_application, "Exam Not Attended")
+		gdl_error("The test window has closed.")
+
+
+@frappe.whitelist(methods=["POST"])
+def confirm_exam_attendance(attempt, response):
+	"""Purely informational - does not drive Exam Attempt.status or the
+	Job Application pipeline (HR still marks absence via
+	gdl.api.hr_exam.close_and_mark_absent). Lets HR see ahead of time who
+	plans to attend, same accept/decline shape as respond_to_offer()."""
+	if response not in ("Confirmed", "Declined"):
+		gdl_error("Response must be Confirmed or Declined.")
+
+	attempt_doc = _get_own_attempt(attempt)
+	attempt_doc.db_set("attendance_response", response)
+	attempt_doc.db_set("attendance_responded_on", frappe.utils.now_datetime())
+	return success(message=f"You have {response.lower()} attendance for this test.")
+
+
+def _get_own_interview_session(name):
+	applicant_doc = _get_own_job_applicant()
+	session = frappe.get_doc("Interview Session", name)
+	if session.job_applicant != applicant_doc.name:
+		gdl_error("Interview not found.")
+	return session
+
+
+@frappe.whitelist(methods=["POST"])
+def confirm_interview_attendance(session, response):
+	"""Same informational-only shape as confirm_exam_attendance - HR still
+	marks absence via gdl.api.hr_interview.mark_not_attended."""
+	if response not in ("Confirmed", "Declined"):
+		gdl_error("Response must be Confirmed or Declined.")
+
+	session_doc = _get_own_interview_session(session)
+	session_doc.db_set("attendance_response", response)
+	session_doc.db_set("attendance_responded_on", frappe.utils.now_datetime())
+	return success(message=f"You have {response.lower()} attendance for this interview.")
 
 
 @frappe.whitelist()
@@ -542,7 +718,7 @@ def start_exam_attempt(name):
 		attempt.db_set("status", "In Progress")
 		attempt.db_set("started_on", frappe.utils.now_datetime())
 	elif attempt.status != "In Progress":
-		gdl_error("This exam can no longer be started.")
+		gdl_error("This test can no longer be started.")
 
 	return success(data={"status": "In Progress"})
 
@@ -569,6 +745,10 @@ def get_exam_attempt(name):
 		],
 		order_by="sequence asc, creation asc",
 	)
+	question_count = len(questions)
+	if attempt.status != "In Progress":
+		# Don't leak question content before the applicant has started the timer.
+		questions = []
 	saved_answers = {
 		row.question: row
 		for row in frappe.get_all(
@@ -578,10 +758,16 @@ def get_exam_attempt(name):
 		)
 	}
 	job_opening = frappe.db.get_value("Job Application", attempt.job_application, "job_opening")
+	max_violations = frappe.db.get_single_value("Recruitment Settings", "max_exam_violations_before_autosubmit")
 
 	return success(
 		data={
-			"attempt": {"name": attempt.name, "status": attempt.status, "started_on": attempt.started_on},
+			"attempt": {
+				"name": attempt.name,
+				"status": attempt.status,
+				"started_on": attempt.started_on,
+				"violation_count": len(attempt.violations),
+			},
 			"job_title": frappe.db.get_value("Job Opening", job_opening, "job_title"),
 			"exam": {
 				"title": exam.title,
@@ -590,20 +776,45 @@ def get_exam_attempt(name):
 				"opens_on": exam.opens_on,
 				"closes_on": exam.closes_on,
 			},
+			"question_count": question_count,
 			"questions": [{**q, "answer": saved_answers.get(q.name)} for q in questions],
+			"max_violations": max_violations or 0,
 		}
 	)
+
+
+@frappe.whitelist(methods=["POST"])
+def log_exam_violation(attempt, event_type):
+	"""Fullscreen-exit/tab-switch detection is inherently best-effort (the
+	client can't truly prevent OS-level app-switching) - this just builds an
+	audit trail for HR and returns whether the caller should auto-submit now
+	that the violation count crossed Recruitment Settings' threshold. See
+	frontend/src/views/applicant/ExamAttempt.vue for the detection side."""
+	if event_type not in ("Fullscreen Exit", "Tab Switch / Window Blur"):
+		gdl_error("Invalid violation event type.")
+
+	attempt_doc = _get_own_attempt(attempt)
+	if attempt_doc.status != "In Progress":
+		return success(data={"violation_count": len(attempt_doc.violations), "should_auto_submit": False})
+
+	attempt_doc.append("violations", {"event_type": event_type, "occurred_on": frappe.utils.now_datetime()})
+	attempt_doc.save(ignore_permissions=True)
+
+	max_violations = frappe.utils.cint(frappe.db.get_single_value("Recruitment Settings", "max_exam_violations_before_autosubmit"))
+	violation_count = len(attempt_doc.violations)
+	should_auto_submit = bool(max_violations) and violation_count >= max_violations
+	return success(data={"violation_count": violation_count, "should_auto_submit": should_auto_submit})
 
 
 @frappe.whitelist(methods=["POST"])
 def save_exam_answer(attempt, question, selected_option=None, short_answer_text=None):
 	attempt_doc = _get_own_attempt(attempt)
 	if attempt_doc.status != "In Progress":
-		gdl_error("This exam is not in progress.")
+		gdl_error("This test is not in progress.")
 	exam = frappe.get_doc("Exam", attempt_doc.exam)
 	_check_exam_window(attempt_doc, exam)
 	if not frappe.db.exists("Exam Question", {"name": question, "exam": attempt_doc.exam}):
-		gdl_error("Invalid question for this exam.")
+		gdl_error("Invalid question for this test.")
 
 	# Direct child-row insert/update (parent/parenttype/parentfield set by
 	# hand) rather than loading + re-saving the whole Exam Attempt on every
@@ -635,7 +846,7 @@ def save_exam_answer(attempt, question, selected_option=None, short_answer_text=
 def submit_exam_attempt(name):
 	attempt = _get_own_attempt(name)
 	if attempt.status != "In Progress":
-		gdl_error("This exam is not in progress.")
+		gdl_error("This test is not in progress.")
 	exam = frappe.get_doc("Exam", attempt.exam)
 	_check_exam_window(attempt, exam)
 
@@ -698,4 +909,4 @@ def submit_exam_attempt(name):
 	attempt.reload()
 	finalize_attempt_grading(attempt)
 
-	return success(message="Exam submitted.")
+	return success(message="Test submitted.")

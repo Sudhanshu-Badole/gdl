@@ -12,7 +12,8 @@
   "short_answer_text",
   "score_given",
   "is_graded",
-  "is_correct"
+  "is_correct",
+  "evaluator_comment"
  ],
  "fields": [
   {
@@ -55,6 +56,12 @@
    "fieldtype": "Check",
    "label": "Is Correct",
    "read_only": 1
+  },
+  {
+   "description": "Evaluator's comment on this short-answer response, visible to the interview panel.",
+   "fieldname": "evaluator_comment",
+   "fieldtype": "Small Text",
+   "label": "Evaluator Comment"
   }
  ],
  "grid_page_length": 50,
