@@ -85,9 +85,9 @@ fixtures = [
 		"dt": "Custom DocPerm",
 		"filters": [["role", "in", ["HR Officer", "Panel Member", "Applicant Portal User"]]],
 	},
-	{"dt": "Department", "filters": [["company", "=", "GreenDigital Ltd"]]},
+	{"dt": "Department", "filters": [["company", "=", "GreenDigital Limited"]]},
 	{"dt": "Designation"},
-	{"dt": "Staffing Plan", "filters": [["company", "=", "GreenDigital Ltd"]]},
+	{"dt": "Staffing Plan", "filters": [["company", "=", "GreenDigital Limited"]]},
 	# every gdl_-prefixed custom field, on any doctype, auto-captured. New
 	# Custom Fields use the custom_ prefix instead (Frappe's own Customize
 	# Form convention) - or_filters, not two separate entries: two fixture
@@ -95,7 +95,7 @@ fixtures = [
 	# + ".json") and the second silently overwrites the first's output.
 	{
 		"dt": "Custom Field",
-		"or_filters": [["fieldname", "like", "gdl_%"], ["fieldname", "like", "custom_%"]],
+		"filters": [["dt", "in", ["Job Applicant", "Job Opening", "Job Offer", "Appointment Letter", "User"]]],
 	},
 	# Job Opening customizations made via Customize Form: the VAC-.YYYY.-.####
 	# naming series (property=autoname), plus label relabels (Department ->
@@ -249,9 +249,6 @@ doc_events = {
 		# sibling applications, so it must run after this save is persisted.
 		"on_update": "gdl.utils.vacancies.auto_close_job_opening_if_filled",
 	},
-    "Purchase Order": {
-		"validate": "gdl.gdl.custom_scripts.purchase_order.purchase_order.validate"
-	}
 }
 
 # Scheduled Tasks
@@ -292,7 +289,6 @@ scheduler_events = {
 # override_doctype_dashboards = {
 # 	"Task": "gdl.task.get_dashboard_data"
 # }
-
 # exempt linked doctypes from being automatically cancelled
 #
 # auto_cancel_exempted_doctypes = ["Auto Repeat"]
