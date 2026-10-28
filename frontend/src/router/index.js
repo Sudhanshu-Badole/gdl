@@ -1,8 +1,12 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 const routes = [
+	// Public landing page lives at /e-recruitment, not "/" - "/" itself is
+	// still served the SPA shell (home_page hook) and the guard below sends
+	// Guests on to /e-recruitment, while logged-in users keep getting
+	// bounced to their own portal's dashboard.
 	{
-		path: "/",
+		path: "/e-recruitment",
 		name: "Home",
 		component: () => import("../views/Home.vue"),
 	},
@@ -149,7 +153,8 @@ router.beforeEach((to) => {
 	const roles = boot.roles || [];
 	const isGuest = !boot.user || boot.user === "Guest";
 
-	if (to.path === "/" && !isGuest) {
+	if (to.path === "/") {
+		if (isGuest) return { path: "/e-recruitment", query: to.query, hash: to.hash, replace: true };
 		// The Administrator account always holds every role, including System
 		// Manager, so it would otherwise match GATED_PORTALS' HR entry below
 		// and never reach Frappe's own Desk - see gdl.auth.get_home_page's
@@ -160,6 +165,7 @@ router.beforeEach((to) => {
 		}
 		const home = GATED_PORTALS.find((p) => p.roles.some((r) => roles.includes(r)));
 		if (home) return home.homePath;
+		return "/e-recruitment";
 	}
 
 	const portal = matchPortal(to.path);

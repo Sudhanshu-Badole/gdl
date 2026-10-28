@@ -1,7 +1,7 @@
 <template>
 	<header class="border-b border-gray-200 bg-white">
 		<div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-			<router-link to="/" class="flex items-center gap-2">
+			<router-link to="/e-recruitment" class="flex items-center gap-2">
 				<span class="text-2xl font-extrabold tracking-tight text-brand-600">GDL</span>
 				<span class="hidden text-sm font-semibold text-ink sm:inline">GreenDigital Limited Careers</span>
 			</router-link>

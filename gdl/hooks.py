@@ -151,6 +151,9 @@ website_route_rules = [
 	# gdl/www/{index,jobs,register}.* pages and Frappe core's stock /login
 	# page. /frontend/<path:app_path> is the SPA's own asset/deep-link
 	# passthrough, kept from the original doppio scaffold.
+	# Public landing page - "/" still resolves to the SPA via home_page, whose
+	# router then sends Guests on to /e-recruitment.
+	{"from_route": "/e-recruitment", "to_route": "frontend"},
 	{"from_route": "/jobs", "to_route": "frontend"},
 	# Public vacancy detail page (Vue), identified by Job Opening docname
 	# (e.g. /jobs/VAC-2026-0011) - shadows HRMS's own website-generator page

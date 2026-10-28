@@ -1,22 +1,67 @@
 @import "tailwindcss";
 
+/* GDL Brand Guidelines v1.0 (gdl-brand-guidelines.pdf) - colour + typography */
 @theme {
-  --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  /* One typeface carries the brand: EB Garamond (loaded in index.html) */
+  --font-sans: 'EB Garamond', Garamond, Georgia, serif;
+  --font-serif: 'EB Garamond', Garamond, Georgia, serif;
 
-  /* GDL forest-green brand scale, approximated from the er.gdl.bt screenshots */
-  --color-brand-50: #eefaf2;
-  --color-brand-100: #d7f0e0;
-  --color-brand-200: #aee0c2;
-  --color-brand-300: #7cc99e;
-  --color-brand-400: #4aab78;
-  --color-brand-500: #2c8c5c;
-  --color-brand-600: #1f7a4a;
-  --color-brand-700: #19613b;
-  --color-brand-800: #144d30;
-  --color-brand-900: #0f3a24;
+  /* Forest scale, exactly as in the guidelines */
+  --color-forest-50: #f0f7f2;
+  --color-forest-100: #dcede2;
+  --color-forest-200: #b9dcc7;
+  --color-forest-300: #8fc4a6;
+  --color-forest-400: #5fa57f;
+  --color-forest-500: #3d8862;
+  --color-forest-600: #2a6e4e;
+  --color-forest-700: #1f5a40;
+  --color-forest-800: #164534;
+  --color-forest-900: #0b3b2a;
+  --color-forest-950: #06251a;
 
-  --color-ink: #0b1220;
-  --color-body: #5b6472;
+  /* brand-* is what the components use: the forest scale, except 600/700
+     (primary buttons/links and their hover state) are pinned to the
+     guidelines' primary Brand Green / Brand Dark swatches. */
+  --color-brand-50: var(--color-forest-50);
+  --color-brand-100: var(--color-forest-100);
+  --color-brand-200: var(--color-forest-200);
+  --color-brand-300: var(--color-forest-300); /* Brand Light #8FC4A6 */
+  --color-brand-400: var(--color-forest-400);
+  --color-brand-500: var(--color-forest-500);
+  --color-brand-600: #00633b; /* Brand Green */
+  --color-brand-700: #004628; /* Brand Dark */
+  --color-brand-800: var(--color-forest-800);
+  --color-brand-900: var(--color-forest-900);
+  --color-brand-950: var(--color-forest-950);
+
+  /* Saffron - accent only (highlights, small accents, CTAs), never large fills */
+  --color-saffron-50: #fdf6e8;
+  --color-saffron-100: #faeacb;
+  --color-saffron-200: #f5d695;
+  --color-saffron-300: #efbe5c; /* Saffron */
+  --color-saffron-400: #e8a73b;
+  --color-saffron-500: #d98e1f;
+  --color-saffron-600: #b8721a;
+  --color-saffron-700: #925814;
+  --color-saffron-800: #6e4212;
+  --color-saffron-900: #4a2c0e;
+
+  /* Green-tinted charcoal neutrals - replace Tailwind's stock gray so every
+     existing border/surface/text gray-* class picks them up */
+  --color-gray-50: #f7f8f7;
+  --color-gray-100: #eef0ee;
+  --color-gray-200: #dde1de;
+  --color-gray-300: #c2c9c4;
+  --color-gray-400: #9aa49d;
+  --color-gray-500: #737e76;
+  --color-gray-600: #57625a;
+  --color-gray-700: #454f48;
+  --color-gray-800: #2e3631;
+  --color-gray-900: #1d2420;
+  --color-gray-950: #101613;
+
+  --color-ink: #101613;
+  --color-body: #454f48;
 }
 
 body {
