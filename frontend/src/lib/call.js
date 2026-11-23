@@ -79,7 +79,7 @@ export default async function call(method, args) {
 			[401, 403].includes(res.status) &&
 			router.currentRoute.value.name !== 'Login'
 		) {
-			router.push('/login');
+			router.push('/e-recruitment/login');
 		}
 		throw e;
 	}

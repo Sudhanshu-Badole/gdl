@@ -13,8 +13,16 @@
 				<a :href="userGuideUrl" class="hidden text-sm font-medium text-ink hover:text-brand-600 sm:inline">
 					User guide
 				</a>
+				<button
+					v-if="installPrompt"
+					type="button"
+					class="hidden rounded-md border border-brand-600 px-3 py-1.5 text-sm font-medium text-brand-600 hover:bg-brand-50 sm:inline"
+					@click="installApp"
+				>
+					Install app
+				</button>
 				<template v-if="isGuest">
-					<router-link to="/login" class="text-sm font-medium text-ink hover:text-brand-600">
+					<router-link to="/e-recruitment/login" class="text-sm font-medium text-ink hover:text-brand-600">
 						Sign in
 					</router-link>
 					<router-link
@@ -37,7 +45,7 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import UserMenu from "./shared/UserMenu.vue";
 import { getRoleInfo } from "../lib/roles";
 
@@ -48,4 +56,21 @@ const userGuideUrl = "/how-to-apply";
 const boot = window.boot || {};
 const isGuest = computed(() => !boot.user || boot.user === "Guest");
 const roleInfo = computed(() => getRoleInfo(boot.roles));
+
+// "Install app" adds a desktop/home-screen shortcut (PWA). Opening it loads
+// "/", which the server/router resolves to the user's role dashboard.
+const installPrompt = ref(null);
+function onBeforeInstall(e) {
+	e.preventDefault();
+	installPrompt.value = e;
+}
+async function installApp() {
+	if (!installPrompt.value) return;
+	installPrompt.value.prompt();
+	await installPrompt.value.userChoice;
+	installPrompt.value = null;
+}
+onMounted(() => window.addEventListener("beforeinstallprompt", onBeforeInstall));
+onBeforeUnmount(() => window.removeEventListener("beforeinstallprompt", onBeforeInstall));
 </script>
+

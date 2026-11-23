@@ -8,7 +8,7 @@
 		<div v-if="submitted" class="mt-8 rounded-xl border border-brand-200 bg-brand-50 p-6 text-sm text-brand-800">
 			<p class="font-semibold">Registration successful.</p>
 			<p class="mt-2">Please check your email to verify your account, then sign in.</p>
-			<router-link to="/login" class="mt-4 inline-block font-semibold text-brand-700 hover:text-brand-800">
+			<router-link to="/e-recruitment/login" class="mt-4 inline-block font-semibold text-brand-700 hover:text-brand-800">
 				Go to sign in
 			</router-link>
 		</div>
@@ -80,7 +80,7 @@
 
 			<p class="text-center text-sm text-body">
 				Already have an account?
-				<router-link to="/login" class="font-semibold text-brand-700 hover:text-brand-800">Sign in</router-link>
+				<router-link to="/e-recruitment/login" class="font-semibold text-brand-700 hover:text-brand-800">Sign in</router-link>
 			</p>
 		</form>
 	</div>

@@ -1,10 +1,9 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 const routes = [
-	// Public landing page lives at /e-recruitment, not "/" - "/" itself is
-	// still served the SPA shell (home_page hook) and the guard below sends
-	// Guests on to /e-recruitment, while logged-in users keep getting
-	// bounced to their own portal's dashboard.
+	// Public landing page lives at /e-recruitment only - "/" is the stock
+	// Frappe home for Guests; logged-in users get their portal's dashboard
+	// via get_website_user_home_page.
 	{
 		path: "/e-recruitment",
 		name: "Home",
@@ -27,7 +26,7 @@ const routes = [
 		component: () => import("../views/Register.vue"),
 	},
 	{
-		path: "/login",
+		path: "/e-recruitment/login",
 		name: "Login",
 		component: () => import("../views/Login.vue"),
 	},
@@ -154,7 +153,10 @@ router.beforeEach((to) => {
 	const isGuest = !boot.user || boot.user === "Guest";
 
 	if (to.path === "/") {
-		if (isGuest) return { path: "/e-recruitment", query: to.query, hash: to.hash, replace: true };
+		if (isGuest) {
+			window.location.href = "/login";
+			return false;
+		}
 		// The Administrator account always holds every role, including System
 		// Manager, so it would otherwise match GATED_PORTALS' HR entry below
 		// and never reach Frappe's own Desk - see gdl.auth.get_home_page's
@@ -172,7 +174,10 @@ router.beforeEach((to) => {
 	if (!portal) return true;
 
 	if (isGuest) {
-		window.location.href = `/login?redirect-to=${encodeURIComponent(to.fullPath)}`;
+		// Applicants sign in on the e-Recruitment page; everyone else (HR,
+		// Panel) uses Frappe's standard login.
+		const loginPath = portal.roles.includes("Applicant Portal User") ? "/e-recruitment/login" : "/login";
+		window.location.href = `${loginPath}?redirect-to=${encodeURIComponent(to.fullPath)}`;
 		return false;
 	}
 

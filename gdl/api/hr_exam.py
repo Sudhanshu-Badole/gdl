@@ -462,6 +462,28 @@ def advance_from_exam(job_opening, cutoff):
 		"Job Application", filters={"job_opening": job_opening, "status": "Exam Completed"}, fields=["name"]
 	)
 	if not completed:
+		# A Submitted attempt only moves its application to "Exam Completed"
+		# once every answer is graded (gdl.utils.exam_scoring), so Short
+		# Answer questions - even ones left blank - hold candidates back
+		# until HR grades them. Say so instead of implying nobody sat it.
+		exams = frappe.get_all("Exam", filters={"job_opening": job_opening}, pluck="name")
+		attempt_filters = {"exam": ["in", exams or [""]]}
+		pending_grading = frappe.db.count(
+			"Exam Attempt", {**attempt_filters, "status": "Submitted", "is_fully_graded": 0}
+		)
+		in_progress = frappe.db.count(
+			"Exam Attempt", {**attempt_filters, "status": ["in", ["Invited", "In Progress"]]}
+		)
+		if pending_grading:
+			gdl_error(
+				f"{pending_grading} submitted test(s) still need grading. Use the Grade button on each "
+				"candidate to score the Short Answer questions, then advance."
+			)
+		if in_progress:
+			gdl_error(
+				f"{in_progress} candidate(s) haven't submitted their test yet. Wait for the test window to "
+				"close, then use Close & mark absent before advancing."
+			)
 		gdl_error("No completed test candidates to advance.")
 
 	scores = {

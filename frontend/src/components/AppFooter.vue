@@ -14,7 +14,7 @@
 				<ul class="mt-3 space-y-2 text-sm">
 					<li><router-link to="/jobs" class="text-body hover:text-brand-600">Browse jobs</router-link></li>
 					<li><router-link to="/register" class="text-body hover:text-brand-600">Register</router-link></li>
-					<li><router-link to="/login" class="text-body hover:text-brand-600">Sign in</router-link></li>
+					<li><router-link to="/e-recruitment/login" class="text-body hover:text-brand-600">Sign in</router-link></li>
 				</ul>
 			</div>
 

@@ -2,6 +2,326 @@
  {
   "appraisal_template": null,
   "description": null,
+  "designation_name": "Director",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:33:10.178429",
+  "name": "Director",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Associate Director",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.822297",
+  "name": "Associate Director",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Sr. Manager",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.852695",
+  "name": "Sr. Manager",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Assoc. Manager",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.864535",
+  "name": "Assoc. Manager",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Sr. Analyst",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.871540",
+  "name": "Sr. Analyst",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Assoc. Analyst",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.881168",
+  "name": "Assoc. Analyst",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Sr. Procurement Officer",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.886776",
+  "name": "Sr. Procurement Officer",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Sr. Accounts Officer",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.892214",
+  "name": "Sr. Accounts Officer",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Sr. Lead Technical Supervisor",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.897139",
+  "name": "Sr. Lead Technical Supervisor",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Sr. Lead ASIC Technician",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.901582",
+  "name": "Sr. Lead ASIC Technician",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Procurement Officer",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.905435",
+  "name": "Procurement Officer",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Accounts Officer",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.910527",
+  "name": "Accounts Officer",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Lead Technical Supervisor",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.918570",
+  "name": "Lead Technical Supervisor",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Lead ASIC Technician",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.929945",
+  "name": "Lead ASIC Technician",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Deputy Procurement Officer",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.938011",
+  "name": "Deputy Procurement Officer",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Deputy Accounts Officer",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.948097",
+  "name": "Deputy Accounts Officer",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Sr. Technical Supervisor",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.955445",
+  "name": "Sr. Technical Supervisor",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Sr. ASIC Technician",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.964858",
+  "name": "Sr. ASIC Technician",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Jr. Procurement Officer",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.973702",
+  "name": "Jr. Procurement Officer",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Accounts Assistant I",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.981622",
+  "name": "Accounts Assistant I",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Technical Supervisor",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.990793",
+  "name": "Technical Supervisor",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "ASIC Technician",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:13.997557",
+  "name": "ASIC Technician",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Procurement Assistant",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:14.004858",
+  "name": "Procurement Assistant",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Accounts Assistant II",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:14.017658",
+  "name": "Accounts Assistant II",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Jr. Technical Supervisor",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:14.026089",
+  "name": "Jr. Technical Supervisor",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Jr. ASIC Technician",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:14.033539",
+  "name": "Jr. ASIC Technician",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Office Assistant",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:14.045563",
+  "name": "Office Assistant",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Driver I",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:14.060437",
+  "name": "Driver I",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Jr. Office Assistant",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:14.072713",
+  "name": "Jr. Office Assistant",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Driver II",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:14.086719",
+  "name": "Driver II",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "Driver III",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:14.092696",
+  "name": "Driver III",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
+  "designation_name": "ESP",
+  "docstatus": 0,
+  "doctype": "Designation",
+  "modified": "2026-10-06 00:34:14.100086",
+  "name": "ESP",
+  "skills": []
+ },
+ {
+  "appraisal_template": null,
+  "description": null,
   "designation_name": "Accountant",
   "docstatus": 0,
   "doctype": "Designation",

@@ -11,15 +11,16 @@ app_license = "mit"
 # required_apps = []
 
 # Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "gdl",
-# 		"logo": "/assets/gdl/logo.png",
-# 		"title": "Gdl",
-# 		"route": "/gdl",
-# 		"has_permission": "gdl.api.permission.has_app_permission"
-# 	}
-# ]
+# Tile on the Frappe apps screen; opens the HR e-Recruitment dashboard.
+add_to_apps_screen = [
+	{
+		"name": "gdl_erecruitment",
+		"logo": "/assets/gdl/frontend/icon-192.png",
+		"title": "e-Recruitment",
+		"route": "/HR/Dashboard",
+		"has_permission": "gdl.api.permission.has_app_permission",
+	}
+]
 
 # Includes in <head>
 # ------------------
@@ -56,13 +57,10 @@ app_license = "mit"
 # Home Pages
 # ----------
 
-# application home page (will override Website Settings)
-# gdl/frontend (Vue SPA, served via gdl/gdl/www/frontend.py/.html) - public
-# vacancy showcase, no login required. Only affects Guests: for logged-in
-# users, get_home_page_via_hooks() checks get_website_user_home_page (below)
-# first, which already returns a real role dashboard before ever falling
-# back to this hook.
-home_page = "frontend"
+# No home_page hook: "/" is the stock Frappe/ERPNext home for Guests. The
+# e-recruitment public site is only served at /e-recruitment (see
+# website_route_rules). Logged-in role users still get redirected to their
+# portal via get_website_user_home_page below.
 
 # website user home page by role (Task 2.3). Using get_website_user_home_page
 # (a function) instead of the simpler role_home_page dict: role_home_page
@@ -142,17 +140,15 @@ website_route_rules = [
 	{"from_route": "/apply/new", "to_route": "frontend"},
 	# Phase 6 - one applicant-facing exam-taking page per Exam Attempt.
 	{"from_route": "/exams/<path:name>", "to_route": "frontend"},
-	# Vue public site (gdl/frontend). "/" itself is handled entirely by the
-	# home_page hook (get_home_page() substitutes it before route rules are
-	# even consulted - see resolve_path() in Frappe core), not a rule here.
+	# Vue public site (gdl/frontend). "/" is NOT served by the SPA for Guests
+	# (stock Frappe home); the public site lives at /e-recruitment.
 	# The rules below take priority over a same-path physical www/*.html page
 	# (verified against Frappe core's resolve_from_map(), which runs before
 	# any file lookup), so they safely shadow the now-deleted
 	# gdl/www/{index,jobs,register}.* pages and Frappe core's stock /login
 	# page. /frontend/<path:app_path> is the SPA's own asset/deep-link
 	# passthrough, kept from the original doppio scaffold.
-	# Public landing page - "/" still resolves to the SPA via home_page, whose
-	# router then sends Guests on to /e-recruitment.
+	# Public landing page.
 	{"from_route": "/e-recruitment", "to_route": "frontend"},
 	{"from_route": "/jobs", "to_route": "frontend"},
 	# Public vacancy detail page (Vue), identified by Job Opening docname
@@ -162,7 +158,9 @@ website_route_rules = [
 	# above.
 	{"from_route": "/jobs/<path:name>", "to_route": "frontend"},
 	{"from_route": "/register", "to_route": "frontend"},
-	{"from_route": "/login", "to_route": "frontend"},
+	# Applicant sign-in page (Vue). Frappe's stock /login is intentionally NOT
+	# shadowed any more - it's the default login for everyone else.
+	{"from_route": "/e-recruitment/login", "to_route": "frontend"},
 	{"from_route": "/frontend/<path:app_path>", "to_route": "frontend"},
 ]
 
